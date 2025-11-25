@@ -1,0 +1,43 @@
+[
+  {
+    "bindings": {
+      "f10": "debugger::StepInto",
+      "shift-f10": "debugger::StepOut"
+    }
+  },
+  {
+    "context": "Editor",
+    "bindings": {
+      "cmd-b": "editor::GoToDefinition",
+      "cmd-[": "pane::GoBack",
+      "cmd-]": "pane::GoForward",
+      "ctrl-g": ["editor::SelectNext", { "replace_newest": false }],
+      "cmd-/": ["editor::ToggleComments", { "advance_downwards": true }],
+      "cmd-shift-l": "editor::SplitSelectionIntoLines",
+      "alt-\\": "editor::CopyPermalinkToLine",
+      "ctrl-d": "editor::MovePageDown",
+      "ctrl-u": "editor::MovePageUp"
+    }
+  },
+  {
+    "context": "Editor && mode == full",
+    "bindings": {
+      "cmd-l": "go_to_line::Toggle",
+      "alt-\\": "editor::CopyPermalinkToLine"
+    }
+  },
+  {
+    "context": "MessageEditor > Editor",
+    "bindings": {
+      "enter": "editor::Newline",
+      "cmd-enter": "agent::Chat"
+    }
+  },
+  {
+    "context": "Workspace",
+    "bindings": {
+      "alt-)": "workspace::ActivatePaneRight",
+      "alt-(": "workspace::ActivatePaneLeft"
+    }
+  }
+]

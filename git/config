@@ -1,0 +1,76 @@
+[include]
+path = ~/.git-user
+
+[apply]
+whitespace = fix
+
+[branch]
+sort = -committerdate
+
+[commit]
+template = ~/.config/git/commit-template
+
+[core]
+# Make `git rebase` safer on macOS.
+# More info: <http://www.git-tower.com/blog/make-git-rebase-safe-on-osx/>
+trustctime = false
+
+# Speed up commands involving untracked files such as `git status`.
+# https://git-scm.com/docs/git-update-index#_untracked_cache
+untrackedCache = true
+
+pager = delta
+
+[interactive]
+diffFilter = delta --color-only
+
+[delta]
+line-numbers = true
+navigate = true  # use n and N to move between diff sections
+dark = true      # or light = true, or omit for auto-detection
+
+[pull]
+rebase = false
+ff = only
+
+[init]
+defaultBranch = main
+
+[diff]
+# Detect copies as well as renames.
+renames = copies
+
+colorMoved = default
+
+[diff "bin"]
+# Use `hexdump` to diff binary files.
+textconv = hexdump -v -C
+
+[help]
+# Automatically correct and execute mistyped commands.
+autocorrect = 1
+
+[merge]
+conflictstyle = zdiff3
+
+[push]
+# https://git-scm.com/docs/git-config#git-config-pushdefault
+default = simple
+# Auto setup remote branches without needing --set-upstream
+autoSetupRemote = true
+
+[alias]
+# List aliases.
+aliases = config --get-regexp alias
+
+# Show the user email for the current repository.
+whoami = config user.email
+
+# Show the git root.
+root = rev-parse --show-toplevel
+
+s = status
+
+[user]
+name = Milan Patel
+email = 32933108+thempatel@users.noreply.github.com

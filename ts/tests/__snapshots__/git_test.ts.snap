@@ -1,0 +1,29 @@
+export const snapshot = {};
+
+snapshot[`parseGitNumStat 1`] = `
+{
+  sha: "340f6c07e9b519f7ccd489f493faa48128ee4771",
+  stats: [
+    {
+      add: 1,
+      del: 1,
+      file: "brew/Brewfile",
+    },
+    {
+      add: 1,
+      del: 1,
+      file: "claude/settings.json",
+    },
+    {
+      add: 1,
+      del: 9,
+      file: "sh/git-diff-base.sh",
+    },
+    {
+      add: 1,
+      del: 0,
+      file: "zsh/dot-zsh_aliases.local.sh",
+    },
+  ],
+}
+`;

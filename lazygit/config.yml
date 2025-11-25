@@ -1,0 +1,7 @@
+gui:
+  # If true, do not show a warning when amending a commit.
+  skipAmendWarning: true
+  skipStashWarning: false
+git:
+  branchPrefix: "milan/"
+  parseEmoji: true

@@ -1,0 +1,11 @@
+#   - feat        for new features introduced (i.e. MINOR in SemVer standard)
+#   - fix         for bug-fixes (i.e. PATCH in SemVer standard)
+#   - build       for changes in build system or environment
+#   - ci          for configuring continuous integration systems
+#   - test        for adding new tests or correcting defective tests
+#   - docs        for changes in documentation only
+#   - refactor    for rewriting or restructuring of code that does not affect API behavior
+#   - perf        for performance-enhancing refactors
+#   - style       for changes in code styles and no changes in logic
+#   - chore       for miscellaneous tasks
+#   - revert      for reverting commits made previously

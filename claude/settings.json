@@ -1,0 +1,30 @@
+{
+  "cleanupPeriodDays": 60,
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch",
+      "Skill(creating-a-plan)",
+      "Skill(implementing-a-plan)",
+      "Read(~/.claude/skills)",
+      "Bash(git commit:*)",
+      "Bash(mkdir:*)"
+    ],
+    "ask": ["Bash(rm:*)"]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/claude-tool-use"
+          }
+        ]
+      }
+    ]
+  },
+  "alwaysThinkingEnabled": false,
+  "autoUpdates": true
+}

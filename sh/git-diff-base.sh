@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+set -e
+
+git diff "$(git base)"...HEAD -- "$@"

@@ -1,0 +1,11 @@
+invert = true
+exit_mode = "return-query"
+enter_accept = true
+secrets_filter = true
+ctrl_n_shortcuts = true
+
+[sync]
+# Enable sync v2 by default
+# This ensures that sync v2 is enabled for new installs only
+# In a later release it will become the default across the board
+records = true

@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "jsxImportSourceTypes": "npm:@types/react@^19"
+  },
+  "imports": {
+    "@/": "./ts/",
+    "@std/fs": "jsr:@std/fs@^1.0.20",
+    "@std/testing": "jsr:@std/testing@^1.0.16",
+    "@zod/zod": "jsr:@zod/zod@^4.1.12",
+    "commander": "https://esm.sh/commander@14.0.2",
+    "@std/path": "jsr:@std/path@^1.1.2",
+    "ink": "npm:ink@^6.2.3",
+    "react": "npm:react@^19.1.1"
+  },
+  "lint": {
+    "include": ["ts/"]
+  },
+  "fmt": {
+    "useTabs": false,
+    "lineWidth": 80,
+    "indentWidth": 2,
+    "semiColons": true,
+    "singleQuote": true,
+    "proseWrap": "preserve",
+    "include": ["ts/"]
+  },
+  "test": {
+    "include": ["ts/tests"]
+  }
+}

@@ -1,0 +1,3 @@
+for filename in $HOME/.zsh.d/*.zsh; do
+  source "$filename"
+done

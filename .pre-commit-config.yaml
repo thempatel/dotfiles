@@ -9,7 +9,3 @@ repos:
     hooks:
       - id: black
         language_version: python3.12
-  - repo: https://github.com/JohnnyMorganz/StyLua
-    rev: v2.2.0
-    hooks:
-      - id: stylua

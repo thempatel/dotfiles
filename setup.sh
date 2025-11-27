@@ -27,5 +27,9 @@ brew bundle --file brew/Brewfile
 deno install
 pre-commit install
 
+for setup in "setup/*"; do
+  $setup
+done
+
 export DOTFILES_HOME=$PROJECT_HOME
 $DOTFILES_HOME/bin/stow!

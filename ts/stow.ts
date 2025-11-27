@@ -64,6 +64,10 @@ const targets: Stowable[] = [
     source: 'lazygit',
     target: path.join(home, 'Library', 'Application Support', 'lazygit'),
   },
+  {
+    source: 'tmux',
+    target: home,
+  },
 ];
 
 function stow(source: string, target: string, adopt: boolean): void {

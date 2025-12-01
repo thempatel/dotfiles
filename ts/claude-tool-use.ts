@@ -1,5 +1,9 @@
 #!/usr/bin/env dev-deno
-import { HookInput, PostToolUseInputType } from '@/lib/claude/hooks.ts';
+import {
+  HookInput,
+  PostToolUseInputType,
+  PreToolUseInputType,
+} from '@/lib/claude/hooks.ts';
 import * as path from '@std/path';
 import { exists } from '@std/fs';
 import { getGitRoot, gitNumStatHead } from '@/lib/git.ts';
@@ -23,7 +27,10 @@ function track(hookInput: unknown, saveDir: string) {
   Deno.writeTextFileSync(filePath, niceJson(hookInput));
 }
 
-async function postToolUseHook(input: PostToolUseInputType, saveDir: string) {
+async function preToolUseHook(input: PreToolUseInputType) {
+}
+
+async function postToolUseHook(input: PostToolUseInputType) {
   if (input.tool_name !== 'Bash') {
     return;
   }
@@ -44,23 +51,9 @@ async function postToolUseHook(input: PostToolUseInputType, saveDir: string) {
   Deno.writeTextFileSync(filePath, niceJson(trackingData));
 }
 
-async function getDataDir() {
-  let saveDir = path.join(HOOKS_DATA_DIR, `${Date.now()}`);
-  let dirExists: boolean = await exists(saveDir);
-  while (dirExists) {
-    saveDir = path.join(HOOKS_DATA_DIR, `${Date.now()}`);
-    dirExists = await exists(saveDir);
-  }
-  return saveDir;
-}
-
 async function main() {
-  const saveDir = await getDataDir();
-  Deno.mkdirSync(saveDir, {
-    recursive: true,
-  });
-
   const input = await new Response(Deno.stdin.readable).json();
+
   track(input, saveDir);
 
   const hookInput = HookInput.safeParse(input);
@@ -70,8 +63,10 @@ async function main() {
   }
 
   switch (hookInput.data.hook_event_name) {
+    case 'PreToolUse':
+      await preToolUseHook(hookInput.data);
     case 'PostToolUse':
-      await postToolUseHook(hookInput.data, saveDir);
+      await postToolUseHook(hookInput.data);
       break;
     default:
       break;

@@ -70,7 +70,12 @@ const targets: Stowable[] = [
   },
 ];
 
-function stow(source: string, target: string, adopt: boolean): void {
+function stow(
+  source: string,
+  target: string,
+  adopt: boolean,
+  del: boolean,
+): void {
   const resolved = path.join(ROOT, source);
   try {
     Deno.statSync(resolved);
@@ -97,6 +102,10 @@ function stow(source: string, target: string, adopt: boolean): void {
     args.splice(3, 0, '--adopt');
   }
 
+  if (del) {
+    args.splice(1, 1, '-D');
+  }
+
   const command = new Deno.Command(STOW_BIN, {
     args,
     cwd: ROOT,
@@ -118,6 +127,7 @@ function main() {
     .description('Manage dotfiles with GNU Stow')
     .option('--src <source>', 'source directory to stow')
     .option('--target <target>', 'target directory for stowing')
+    .option('--del', 'delete existing links', false)
     .option('--adopt', 'adopt existing files into stow directory', false)
     .parse(Deno.args, { from: 'user' });
 
@@ -127,11 +137,11 @@ function main() {
     if (!options.target) {
       throw new Error('target must be provided if src is provided');
     }
-    return stow(options.src, options.target, options.adopt);
+    return stow(options.src, options.target, options.adopt, options.del);
   }
 
   for (const stowable of targets) {
-    stow(stowable.source, stowable.target, options.adopt);
+    stow(stowable.source, stowable.target, options.adopt, options.del);
   }
 }
 

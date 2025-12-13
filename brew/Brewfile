@@ -1,8 +1,10 @@
+tap "bufbuild/buf"
 tap "oven-sh/bun"
 
 brew "atuin"
 brew "bat"
 brew "bmon"
+brew "buf"
 brew "bun"
 brew "comby"
 brew "coreutils"

@@ -50,6 +50,12 @@
     }
   },
   "lsp": {
+    "protobuf-language-server": {
+      "binary": {
+        "path": "buf",
+        "arguments": ["beta", "lsp"]
+      }
+    },
     "vtsls": {
       "settings": {
         "vtsls": {

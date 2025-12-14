@@ -1,5 +1,6 @@
 FROM golang:1.25.5-alpine3.23 AS golang
 FROM rust:alpine3.23 AS rust
+FROM node:24-alpine3.23 AS node
 
 FROM alpine:3.23.0
 
@@ -29,6 +30,15 @@ COPY --from=rust /usr/local/cargo /usr/local/cargo
 ENV RUSTUP_HOME="/usr/local/rustup"
 ENV CARGO_HOME="/usr/local/cargo"
 ENV PATH="/usr/local/cargo/bin:${PATH}"
+
+# Copy Node.js from official image
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+  && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+
+
+RUN npm install -g @anthropic-ai/claude-code
 
 # Install uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh

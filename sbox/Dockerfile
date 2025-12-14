@@ -1,0 +1,48 @@
+FROM golang:1.25.5-alpine3.23 AS golang
+FROM rust:alpine3.23 AS rust
+
+FROM alpine:3.23.0
+
+# Install base packages and build tools
+RUN apk add --no-cache \
+  bash \
+  curl \
+  wget \
+  git \
+  build-base \
+  linux-headers \
+  ca-certificates \
+  openssl-dev \
+  pkgconf \
+  jq
+
+# Copy Go from official image
+COPY --from=golang /usr/local/go /usr/local/go
+ENV PATH="/usr/local/go/bin:${PATH}"
+ENV GOPATH="/go"
+ENV PATH="${GOPATH}/bin:${PATH}"
+
+# Copy Rust from official image
+COPY --from=rust /usr/local/rustup /usr/local/rustup
+COPY --from=rust /usr/local/cargo /usr/local/cargo
+ENV RUSTUP_HOME="/usr/local/rustup"
+ENV CARGO_HOME="/usr/local/cargo"
+ENV PATH="/usr/local/cargo/bin:${PATH}"
+
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:${PATH}"
+
+# Install Claude Code
+RUN curl -fsSL https://claude.ai/install.sh | bash
+
+# Copy bashrc configuration
+COPY bashrc.sh /root/.bashrc
+
+# Copy start script to PATH
+COPY start.sh /usr/local/bin/start
+RUN chmod +x /usr/local/bin/start
+
+WORKDIR /workspace
+
+CMD ["/bin/bash"]

@@ -9,7 +9,7 @@ HOST_CC_CONFIG="$HOME/.config/claude-container"
 LOCAL_CC_CONFIG="/root/.claude"
 LOCAL_CONFIG="/root/.config"
 
-"$DOTFILES_HOME/sbox/build.sh"
+QUIET=1 "$DOTFILES_HOME/sbox/build.sh"
 
 mkdir -p "$HOST_CC_CONFIG"
 

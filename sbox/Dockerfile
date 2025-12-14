@@ -9,6 +9,7 @@ RUN apk add --no-cache \
   curl \
   wget \
   git \
+  coreutils \
   build-base \
   linux-headers \
   ca-certificates \
@@ -32,9 +33,6 @@ ENV PATH="/usr/local/cargo/bin:${PATH}"
 # Install uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
-
-# Install Claude Code
-RUN curl -fsSL https://claude.ai/install.sh | bash
 
 # Copy bashrc configuration
 COPY bashrc.sh /root/.bashrc

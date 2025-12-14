@@ -1,3 +1,8 @@
 #!/usr/bin/env bash
+#
 
-docker build -t sbox "$(dirname "$0")"
+if [[ -n $QUIET ]]; then
+  EXTRA_ARGS='-q'
+fi
+
+docker build $EXTRA_ARGS -t sbox "$(dirname "$0")"

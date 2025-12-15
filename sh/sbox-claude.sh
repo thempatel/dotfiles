@@ -4,12 +4,13 @@
 set -e
 
 IMAGE_NAME="sbox"
-
 HOST_CC_CONFIG="$HOME/.config/claude-container"
 LOCAL_CC_CONFIG="/root/.claude"
 LOCAL_CONFIG="/root/.config"
 
-QUIET=1 "$DOTFILES_HOME/sbox/build.sh"
+if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+  QUIET=1 "$DOTFILES_HOME/sbox/build.sh"
+fi
 
 mkdir -p "$HOST_CC_CONFIG"
 

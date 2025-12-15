@@ -10,3 +10,6 @@ alias lg='lazygit'
 
 # proxyman
 alias pm='proxyman-cli proxy'
+
+# term
+alias term-reset='reset; tput cnorm'

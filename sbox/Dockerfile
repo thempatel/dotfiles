@@ -6,16 +6,17 @@ FROM debian:stable-20251208
 # Install base packages and build tools
 RUN apt-get update && apt-get install -y \
   bash \
-  curl \
-  wget \
-  git \
-  coreutils \
   build-essential \
-  linux-headers-generic \
   ca-certificates \
+  coreutils \
+  curl \
+  git \
+  jq \
   libssl-dev \
+  linux-headers-generic \
   pkgconf \
-  jq
+  protobuf-compiler \
+  wget
 
 # Copy Go from official image
 COPY --from=golang /usr/local/go /usr/local/go

@@ -26,6 +26,18 @@ z() {
   ) && cd "$dir"
 }
 
+cc-no-commit() {
+  local dir=".claude"
+  local file="$dir/settings.local.json"
+  mkdir -p "$dir"
+
+  if [[ ! -f "$file" ]]; then
+    echo '{}' > "$file"
+  fi
+
+  jq '.includeCoAuthoredBy = false' "$file" | sponge "$file"
+}
+
 zle -N pb-kill-whole-line
 zle -N pb-yank
 zle -N fzf-search

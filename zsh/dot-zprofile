@@ -1,9 +1,9 @@
 export SHELL_SESSIONS_DISABLE=1
 
-if ! which brew &> /dev/null && [[ -d /opt/homebrew ]]; then
+if ! command -v brew &> /dev/null && [[ -d /opt/homebrew ]]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
-if which direnv &> /dev/null; then
+if command -v direnv &> /dev/null; then
   eval "$(direnv hook zsh)"
 fi

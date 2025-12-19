@@ -1,3 +1,7 @@
+#/usr/bin/env bash
+
+set -e
+
 if command -v docker || ! command -v podman ; then
   exit 0
 fi

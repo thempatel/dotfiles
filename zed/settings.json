@@ -11,17 +11,17 @@
   "show_whitespaces": "all",
   "indent_guides": {
     "background_coloring": "indent_aware",
-    "coloring": "indent_aware"
+    "coloring": "indent_aware",
   },
   "close_on_file_delete": true,
   "use_smartcase_search": false,
   "file_types": {
-    "C++": ["mm", "m"]
+    "C++": ["mm", "m"],
   },
   "disable_ai": true,
   "telemetry": {
     "diagnostics": false,
-    "metrics": false
+    "metrics": false,
   },
   "vim_mode": false,
   "base_keymap": "VSCode",
@@ -29,32 +29,35 @@
   "buffer_font_size": 14,
   "theme": "Github Dark",
   "buffer_font_features": {
-    "calt": false
+    "calt": false,
   },
   "languages": {
     "HTML": {
-      "format_on_save": "off"
+      "format_on_save": "off",
     },
     "SQL": {
       "formatter": {
         "external": {
           "command": "npx",
-          "arguments": ["sql-formatter", "--language", "mysql"]
-        }
-      }
-    }
+          "arguments": ["sql-formatter", "--language", "mysql"],
+        },
+      },
+    },
+    "Python": {
+      "language_servers": ["ty"],
+    },
   },
   "git": {
     "inline_blame": {
-      "enabled": false
-    }
+      "enabled": false,
+    },
   },
   "lsp": {
     "protobuf-language-server": {
       "binary": {
         "path": "buf",
-        "arguments": ["beta", "lsp"]
-      }
+        "arguments": ["beta", "lsp"],
+      },
     },
     "vtsls": {
       "settings": {
@@ -63,40 +66,40 @@
           "experimental": {
             "completion": {
               "enableServerSideFuzzyMatch": true,
-              "entriesLimit": 10
-            }
-          }
+              "entriesLimit": 10,
+            },
+          },
         },
         "typescript": {
           "updateImportsOnFileMove": {
-            "enabled": "never"
+            "enabled": "never",
           },
           "tsserver": {
             "maxTsServerMemory": 24576,
             "enableTracing": false,
-            "log": "off"
-          }
+            "log": "off",
+          },
         },
         "javascript": {
           "updateImportsOnFileMove": {
-            "enabled": "never"
+            "enabled": "never",
           },
           "tsserver": {
             "maxTsServerMemory": 8192,
             "enableTracing": false,
-            "log": "off"
-          }
-        }
-      }
+            "log": "off",
+          },
+        },
+      },
     },
     "yaml-language-server": {
       "settings": {
         "yaml": {
           "schemaStore": {
-            "enable": false
-          }
-        }
-      }
-    }
-  }
+            "enable": false,
+          },
+        },
+      },
+    },
+  },
 }

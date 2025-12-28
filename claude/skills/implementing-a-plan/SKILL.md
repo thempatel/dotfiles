@@ -6,9 +6,7 @@ description: Loads plan, reviews critically, executes each batch, and reports fo
 ## The Process
 1. Load plan and review critically
 2. Execute each batch with using a subagent in order
-3. Report for review between batches
-4. Incorporate feedback, if any
-4. Continue until all batches are done
+3. Continue until all batches are done
 
 ### Step 1: Load and Review Plan
 1. Read plan file
@@ -40,10 +38,8 @@ Task tool (general-purpose):
 When batch is complete:
 - Show what was implemented
 - Show verification output
-- Say: "Ready for feedback."
 
 ### Step 4: Continue
-- Incorporate and apply changes if needed
 - Fill out the recap section of the next batch file
   - Include any deviations from the plan that resulted from human feedback
   - Include the agent output from the most recent batch
@@ -75,5 +71,4 @@ When batch is complete:
 - Follow plan steps exactly
 - Don't skip verifications
 - Reference skills when plan says to
-- Between batches: just report and wait
 - Stop when blocked, don't guess

@@ -5,7 +5,7 @@ alias reload!="exec $SHELL"
 alias speedtest="networkQuality -v -s"
 
 # git
-alias s='git status'
+alias gs='git status'
 alias lg='lazygit'
 
 # proxyman

@@ -1,0 +1,4 @@
+[[session]]
+name = "Lazygit"
+path = "~/src/dotfiles/"
+startup_command = "lg"

@@ -17,15 +17,6 @@ fzf-search() {
   fzf-rg $query
 }
 
-z() {
-  local dir=$(
-    _z 2>&1 |
-    fzf --height 40% --layout reverse --info inline \
-        --nth 2.. --tac --no-sort --query "$*" \
-        --accept-nth 2..
-  ) && cd "$dir"
-}
-
 cc-no-commit() {
   local dir=".claude"
   local file="$dir/settings.local.json"

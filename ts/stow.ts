@@ -68,6 +68,10 @@ const targets: Stowable[] = [
     source: 'tmux',
     target: home,
   },
+  {
+    source: 'sesh',
+    target: path.join(home, '.config', 'sesh'),
+  },
 ];
 
 function stow(

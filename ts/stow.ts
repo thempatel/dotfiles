@@ -61,6 +61,16 @@ function getDefaultConfigPath(): string {
   return path.join(dotfilesHome, 'stow.yaml');
 }
 
+function getTargetForSource(config: StowConfig, source: string): string {
+  const found = config.targets.find((t) => t.source === source);
+  if (!found) {
+    throw new Error(
+      `No target found for source "${source}" in config. Provide one via --target`,
+    );
+  }
+  return found.target;
+}
+
 const STOW_BIN = getBin('stow');
 
 function stow(
@@ -133,14 +143,12 @@ function main() {
   const configPath = options.config || getDefaultConfigPath();
   const root = path.dirname(path.resolve(configPath));
 
-  if (options.src) {
-    if (!options.target) {
-      throw new Error('target must be provided if src is provided');
-    }
-    return stow(root, options.src, options.target, options.adopt, options.del);
-  }
-
   const config = loadConfig(configPath);
+
+  if (options.src) {
+    const target = options.target || getTargetForSource(config, options.src);
+    return stow(root, options.src, target, options.adopt, options.del);
+  }
 
   for (const stowable of config.targets) {
     stow(root, stowable.source, stowable.target, options.adopt, options.del);

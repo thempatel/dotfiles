@@ -9,6 +9,7 @@
     "@/": "./ts/",
     "@std/fs": "jsr:@std/fs@^1.0.20",
     "@std/testing": "jsr:@std/testing@^1.0.16",
+    "@std/yaml": "jsr:@std/yaml@^1.0.10",
     "@zod/zod": "jsr:@zod/zod@^4.1.12",
     "commander": "https://esm.sh/commander@14.0.2",
     "@std/path": "jsr:@std/path@^1.1.2",

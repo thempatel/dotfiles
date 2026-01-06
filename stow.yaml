@@ -1,0 +1,21 @@
+targets:
+  - source: zsh
+    target: "~"
+  - source: atuin
+    target: "~/.config/atuin"
+  - source: git
+    target: "~/.config/git"
+  - source: zed
+    target: "~/.config/zed"
+  - source: ripgrep
+    target: "~/.config/ripgrep"
+  - source: vim
+    target: "~"
+  - source: claude
+    target: "~/.claude"
+  - source: lazygit
+    target: "~/Library/Application Support/lazygit"
+  - source: tmux
+    target: "~"
+  - source: sesh
+    target: "~/.config/sesh"

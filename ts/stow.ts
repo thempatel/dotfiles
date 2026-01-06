@@ -2,10 +2,15 @@
 
 import { Command } from 'commander';
 import * as path from '@std/path';
+import { parse as parseYaml } from '@std/yaml';
 
 type Stowable = {
   source: string;
   target: string;
+};
+
+type StowConfig = {
+  targets: Stowable[];
 };
 
 function getBin(name: string): string {
@@ -20,67 +25,54 @@ function getBin(name: string): string {
   return new TextDecoder().decode(command.stdout).trim();
 }
 
-const STOW_BIN = getBin('stow');
-const ROOT = new Array(2).fill(null).reduce(
-  (p) => path.dirname(p),
-  path.fromFileUrl(import.meta.url),
-);
+function resolveTilde(filePath: string): string {
+  const home = Deno.env.get('HOME');
+  if (!home) {
+    throw new Error('HOME environment variable not set');
+  }
 
-const home = Deno.env.get('HOME');
-if (!home) {
-  throw new Error('HOME environment variable not set');
+  if (filePath === '~') {
+    return home;
+  }
+
+  if (filePath.startsWith('~/')) {
+    return path.join(home, filePath.slice(2));
+  }
+
+  return filePath;
 }
 
-const targets: Stowable[] = [
-  {
-    source: 'zsh',
-    target: home,
-  },
-  {
-    source: 'atuin',
-    target: path.join(home, '.config', 'atuin'),
-  },
-  {
-    source: 'git',
-    target: path.join(home, '.config', 'git'),
-  },
-  {
-    source: 'zed',
-    target: path.join(home, '.config', 'zed'),
-  },
-  {
-    source: 'ripgrep',
-    target: path.join(home, '.config', 'ripgrep'),
-  },
-  {
-    source: 'vim',
-    target: home,
-  },
-  {
-    source: 'claude',
-    target: path.join(home, '.claude'),
-  },
-  {
-    source: 'lazygit',
-    target: path.join(home, 'Library', 'Application Support', 'lazygit'),
-  },
-  {
-    source: 'tmux',
-    target: home,
-  },
-  {
-    source: 'sesh',
-    target: path.join(home, '.config', 'sesh'),
-  },
-];
+function loadConfig(configPath: string): StowConfig {
+  const content = Deno.readTextFileSync(configPath);
+  const config = parseYaml(content) as StowConfig;
+
+  if (!config.targets || !Array.isArray(config.targets)) {
+    throw new Error('Config must have a "targets" array');
+  }
+
+  return config;
+}
+
+function getDefaultConfigPath(): string {
+  const dotfilesHome = Deno.env.get('DOTFILES_HOME');
+  if (!dotfilesHome) {
+    throw new Error('DOTFILES_HOME environment variable not set and no config file provided');
+  }
+  return path.join(dotfilesHome, 'stow.yaml');
+}
+
+const STOW_BIN = getBin('stow');
 
 function stow(
+  root: string,
   source: string,
   target: string,
   adopt: boolean,
   del: boolean,
 ): void {
-  const resolved = path.join(ROOT, source);
+  const resolved = path.join(root, source);
+  const resolvedTarget = resolveTilde(target);
+
   try {
     Deno.statSync(resolved);
   } catch {
@@ -88,9 +80,9 @@ function stow(
   }
 
   try {
-    Deno.statSync(target);
+    Deno.statSync(resolvedTarget);
   } catch {
-    Deno.mkdirSync(target, { recursive: true, mode: 0o755 });
+    Deno.mkdirSync(resolvedTarget, { recursive: true, mode: 0o755 });
   }
 
   const args = [
@@ -98,7 +90,7 @@ function stow(
     '-R',
     '--dotfiles',
     '-t',
-    path.resolve(target),
+    path.resolve(resolvedTarget),
     source,
   ];
 
@@ -112,7 +104,7 @@ function stow(
 
   const command = new Deno.Command(STOW_BIN, {
     args,
-    cwd: ROOT,
+    cwd: root,
     stdout: 'inherit',
     stderr: 'inherit',
   });
@@ -129,6 +121,7 @@ function main() {
   program
     .name('stow')
     .description('Manage dotfiles with GNU Stow')
+    .option('-c, --config <path>', 'path to stow.yaml config file')
     .option('--src <source>', 'source directory to stow')
     .option('--target <target>', 'target directory for stowing')
     .option('--del', 'delete existing links', false)
@@ -137,15 +130,20 @@ function main() {
 
   const options = program.opts();
 
+  const configPath = options.config || getDefaultConfigPath();
+  const root = path.dirname(path.resolve(configPath));
+
   if (options.src) {
     if (!options.target) {
       throw new Error('target must be provided if src is provided');
     }
-    return stow(options.src, options.target, options.adopt, options.del);
+    return stow(root, options.src, options.target, options.adopt, options.del);
   }
 
-  for (const stowable of targets) {
-    stow(stowable.source, stowable.target, options.adopt, options.del);
+  const config = loadConfig(configPath);
+
+  for (const stowable of config.targets) {
+    stow(root, stowable.source, stowable.target, options.adopt, options.del);
   }
 }
 

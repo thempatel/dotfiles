@@ -5,3 +5,17 @@ gui:
 git:
   branchPrefix: "milan/"
   parseEmoji: true
+customCommands:
+  - key: "G"
+    command: "gh pr view -w {{.SelectedLocalBranch.Name}}"
+    context: "localBranches"
+    description: "Open Github PR in browser"
+  - key: "G"
+    command: "gh pr view -w"
+    context: "commits"
+    description: "Open Github PR in browser"
+  - key: "<c-p>"
+    command: "git prune-local"
+    context: "localBranches"
+    loadingText: "Pruning..."
+    description: "Prune local deleted remote branches"

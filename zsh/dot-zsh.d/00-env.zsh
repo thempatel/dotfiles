@@ -1,6 +1,7 @@
 SCRIPT_PATH="${(%):-%x}"
 SCRIPT_DIR="${SCRIPT_PATH:A:h}"
 
+export PAGER=bat
 export LSCOLORS="Gxfxcxdxbxegedabagacad"
 export DOTFILES_HOME="${SCRIPT_DIR:h:h}"
 export GPG_TTY=$(tty)

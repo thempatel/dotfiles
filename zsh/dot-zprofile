@@ -1,26 +1,10 @@
+autoload -U compinit; compinit
 typeset -U PATH path
 
 export SHELL_SESSIONS_DISABLE=1
 export HISTSIZE=50000
 export SAVEHIST=10000
-export PAGER=bat
-
-# From OMZ
-setopt auto_cd
-setopt auto_pushd
-setopt pushd_ignore_dups
-setopt pushdminus
-setopt extended_history       # record timestamp of command in HISTFILE
-setopt hist_expire_dups_first # delete duplicates first when HISTFILE size exceeds HISTSIZE
-setopt hist_ignore_dups       # ignore duplicated commands history list
-setopt hist_ignore_space      # ignore commands that start with space
-setopt hist_verify            # show command with history expansion to user before running it
-setopt share_history          # share command history data
-setopt multios              # enable redirect to multiple streams: echo >file1 >file2
-setopt long_list_jobs       # show long list format job notifications
-setopt interactivecomments  # recognize comments
-
-autoload -U compinit; compinit
+ZSH_CACHE_DIR="$HOME/.zcache"
 
 if ! command -v brew &> /dev/null && [[ -d /opt/homebrew ]]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"

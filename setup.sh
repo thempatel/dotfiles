@@ -27,7 +27,8 @@ brew bundle --file brew/Brewfile
 deno install
 pre-commit install
 
-for setup in "setup/*"; do
+for setup in setup/*; do
+  echo "> $setup"
   $setup
 done
 

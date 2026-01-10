@@ -1,0 +1,8 @@
+alias gpf='git push --force-with-lease --force-if-includes'
+alias gco='git checkout'
+alias gcb='git checkout -b'
+alias gpr='git pull --rebase'
+alias gpra='git pull --rebase --autostash'
+alias gp='git push'
+alias grhh='git reset --hard'
+alias groh='git reset origin/$(git_current_branch) --hard'

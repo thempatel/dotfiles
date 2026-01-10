@@ -1,11 +1,7 @@
-ssh-add --apple-use-keychain "$HOME/.ssh/id_ed25519"
-
-# Deduplicate $PATH entries
-typeset -U PATH path
-
 SCRIPT_PATH="${(%):-%x}"
 SCRIPT_DIR="${SCRIPT_PATH:A:h}"
 
+export LSCOLORS="Gxfxcxdxbxegedabagacad"
 export DOTFILES_HOME="${SCRIPT_DIR:h:h}"
 export GPG_TTY=$(tty)
 export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/config"

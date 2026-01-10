@@ -1,7 +1,6 @@
-export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME="robbyrussell"
-plugins=(git)
-source $ZSH/oh-my-zsh.sh
+if command -v starship &> /dev/null; then
+  eval "$(starship init zsh)"
+fi
 
 if which atuin > /dev/null; then
   eval "$(atuin init zsh --disable-up-arrow)"

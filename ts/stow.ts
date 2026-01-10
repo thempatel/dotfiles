@@ -56,7 +56,9 @@ function loadConfig(configPath: string): StowConfig {
 function getDefaultConfigPath(): string {
   const dotfilesHome = Deno.env.get('DOTFILES_HOME');
   if (!dotfilesHome) {
-    throw new Error('DOTFILES_HOME environment variable not set and no config file provided');
+    throw new Error(
+      'DOTFILES_HOME environment variable not set and no config file provided',
+    );
   }
   return path.join(dotfilesHome, 'stow.yaml');
 }
@@ -132,10 +134,10 @@ function main() {
     .name('stow')
     .description('Manage dotfiles with GNU Stow')
     .option('-c, --config <path>', 'path to stow.yaml config file')
-    .option('--src <source>', 'source directory to stow')
-    .option('--target <target>', 'target directory for stowing')
-    .option('--del', 'delete existing links', false)
-    .option('--adopt', 'adopt existing files into stow directory', false)
+    .option('-s, --src <source>', 'source directory to stow')
+    .option('-t, --target <target>', 'target directory for stowing')
+    .option('-d, --delete', 'delete existing links', false)
+    .option('-a, --adopt', 'adopt existing files into stow directory', false)
     .parse(Deno.args, { from: 'user' });
 
   const options = program.opts();
@@ -147,7 +149,7 @@ function main() {
 
   if (options.src) {
     const target = options.target || getTargetForSource(config, options.src);
-    return stow(root, options.src, target, options.adopt, options.del);
+    return stow(root, options.src, target, options.adopt, options.delete);
   }
 
   for (const stowable of config.targets) {

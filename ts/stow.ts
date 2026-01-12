@@ -63,6 +63,16 @@ function getDefaultConfigPath(): string {
   return path.join(dotfilesHome, 'stow.yaml');
 }
 
+function getConfigPath(): string {
+  const localConfig = path.join(Deno.cwd(), 'stow.yaml');
+  try {
+    Deno.statSync(localConfig);
+    return localConfig;
+  } catch {
+    return getDefaultConfigPath();
+  }
+}
+
 function getTargetForSource(config: StowConfig, source: string): string {
   const found = config.targets.find((t) => t.source === source);
   if (!found) {
@@ -142,7 +152,7 @@ function main() {
 
   const options = program.opts();
 
-  const configPath = options.config || getDefaultConfigPath();
+  const configPath = options.config || getConfigPath();
   const root = path.dirname(path.resolve(configPath));
 
   const config = loadConfig(configPath);

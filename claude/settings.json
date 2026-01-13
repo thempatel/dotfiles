@@ -4,11 +4,19 @@
     "allow": [
       "WebSearch",
       "WebFetch",
+
       "Skill(creating-a-plan)",
       "Skill(implementing-a-plan)",
+      "Skill(github)",
+      "Skill(linear)",
+
       "Read(~/.claude/skills)",
-      "Bash(git commit:*)",
-      "Bash(mkdir:*)"
+
+      "Bash(git:*)",
+      "Bash(mkdir:*)",
+      "Bash(gh pr:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)"
     ],
     "ask": ["Bash(rm:*)"]
   },

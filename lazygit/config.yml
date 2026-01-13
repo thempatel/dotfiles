@@ -16,6 +16,6 @@ customCommands:
     description: "Open Github PR in browser"
   - key: "<c-p>"
     command: "git prune-local"
-    context: "localBranches"
+    context: "status"
     loadingText: "Pruning..."
     description: "Prune local deleted remote branches"

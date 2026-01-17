@@ -21,3 +21,5 @@ targets:
     target: "~/.config/sesh"
   - source: starship
     target: "~/.config"
+  - source: "ssh"
+    target: "~/.ssh"

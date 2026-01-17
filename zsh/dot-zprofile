@@ -17,5 +17,3 @@ fi
 if command -v zoxide &> /dev/null; then
   eval "$(zoxide init zsh)"
 fi
-
-ssh-add --apple-use-keychain "$HOME/.ssh/id_ed25519"

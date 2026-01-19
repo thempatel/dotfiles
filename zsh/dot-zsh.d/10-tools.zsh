@@ -2,8 +2,12 @@ if command -v starship &> /dev/null; then
   eval "$(starship init zsh)"
 fi
 
-if which atuin > /dev/null; then
+if command -v atuin &> /dev/null; then
   eval "$(atuin init zsh --disable-up-arrow)"
+fi
+
+if command -v task &> /dev/null; then
+  eval "$(task --completion zsh)"
 fi
 
 FZF_GIT="$DOTFILES_HOME/vendor/fzf-git.sh"

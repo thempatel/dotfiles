@@ -42,7 +42,8 @@ RUN touch "${BASH_ENV}"
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | PROFILE="${BASH_ENV}" bash
 RUN echo "24" > .nvmrc
 RUN bash -lc 'nvm install'
-RUN bash -lc 'npm install -g @anthropic-ai/claude-code'
+
+RUN curl -fsSL https://claude.ai/install.sh | bash
 
 # Install uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh

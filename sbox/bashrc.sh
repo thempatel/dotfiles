@@ -9,3 +9,5 @@ alias ..='cd ..'
 if [[ -f $HOME/.bash_env ]]; then
   source $HOME/.bash_env
 fi
+
+export PATH="$HOME/.local/bin:${PATH}"

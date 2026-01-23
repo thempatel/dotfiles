@@ -44,8 +44,6 @@ RUN echo "24" > .nvmrc
 RUN bash -lc 'nvm install'
 RUN bash -lc 'npm install -g @anthropic-ai/claude-code'
 
-
-
 # Install uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"

@@ -11,3 +11,4 @@ if [[ -f $HOME/.bash_env ]]; then
 fi
 
 export PATH="$HOME/.local/bin:${PATH}"
+export PATH="$HOME/.deno/bin:${PATH}"

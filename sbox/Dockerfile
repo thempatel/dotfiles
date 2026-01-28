@@ -41,6 +41,7 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | P
 RUN echo "24" > .nvmrc
 RUN bash -lc 'nvm install'
 
+RUN sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b ~/.local/bin
 RUN curl -fsSL https://deno.land/install.sh | sh
 RUN curl -fsSL https://claude.ai/install.sh | bash
 

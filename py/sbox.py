@@ -145,6 +145,15 @@ class SeatbeltPolicy:
 
     def _add_system_paths(self, lines: list[str]) -> None:
         """Add system paths that are always needed."""
+        # Allow execution of specific setuid binaries that are commonly needed.
+        # Without this, sandbox blocks them with "forbidden-exec-sugid".
+        # The "(with no-sandbox)" modifier allows executing setuid binaries.
+        for binary in [
+            "/bin/ps",
+            "/usr/bin/top",
+        ]:
+            lines.append(f'(allow process-exec (with no-sandbox) (literal "{binary}"))')
+
         # Temp directories
         for tmp in [
             "/tmp",

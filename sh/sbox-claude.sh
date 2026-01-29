@@ -19,7 +19,7 @@ if find .venv -mindepth 1 -maxdepth 1 2>/dev/null | read; then
   XTRA_ARGS='-v "/workspace/.venv"'
 fi
 
-CMD='bash -lc "start"'
+CMD='bash -ic "start"'
 if [[ -n "$NO_CLAUDE" ]]; then
   CMD="bash"
 fi

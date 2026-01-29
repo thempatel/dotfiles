@@ -17,6 +17,13 @@ WRITE_PATHS+=(-w "$HOME/.claude.json")
 [[ -d ".venv" ]] && WRITE_PATHS+=(-w "$(pwd)/.venv")
 [[ -d "node_modules" ]] && WRITE_PATHS+=(-w "$(pwd)/node_modules")
 
+# Go module cache (needed for go get/build/mod download)
+GOMODCACHE="${GOMODCACHE:-${GOPATH:-$HOME/go}/pkg/mod}"
+[[ -d "$GOMODCACHE" ]] && WRITE_PATHS+=(-w "$GOMODCACHE")
+
+# Rust/Cargo cache
+[[ -d "$HOME/.cargo" ]] && WRITE_PATHS+=(-w "$HOME/.cargo")
+
 # Set up dedicated SSH key for Claude
 CLAUDE_SSH_KEY="$HOME/.ssh/claude_ecdsa"
 if [[ ! -f "$CLAUDE_SSH_KEY" ]]; then

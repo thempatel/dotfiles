@@ -1,37 +1,50 @@
 #!/usr/bin/env bash
 #
+# Run Claude Code in a macOS sandbox using sbox (sandbox-exec wrapper).
 
 set -e
 
-IMAGE_NAME="sbox"
-HOST_CC_CONFIG="$HOME/.config/claude-container"
-LOCAL_CC_CONFIG="/root/.claude"
-LOCAL_CONFIG="/root/.config"
+# Allow writes to the current working directory
+WRITE_PATHS=(-w "$(pwd)")
 
-if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
-  QUIET=1 "$DOTFILES_HOME/sbox/build.sh"
+# Claude config directory and state file
+CLAUDE_CONFIG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+mkdir -p "$CLAUDE_CONFIG"
+WRITE_PATHS+=(-w "$CLAUDE_CONFIG")
+WRITE_PATHS+=(-w "$HOME/.claude.json")
+
+# Allow writes to common development paths if they exist
+[[ -d ".venv" ]] && WRITE_PATHS+=(-w "$(pwd)/.venv")
+[[ -d "node_modules" ]] && WRITE_PATHS+=(-w "$(pwd)/node_modules")
+
+# Set up dedicated SSH key for Claude
+CLAUDE_SSH_KEY="$HOME/.ssh/claude_ecdsa"
+if [[ ! -f "$CLAUDE_SSH_KEY" ]]; then
+    echo "Creating dedicated SSH key for Claude at $CLAUDE_SSH_KEY"
+    ssh-keygen -t ecdsa -f "$CLAUDE_SSH_KEY" -N "" -C "claude@$(hostname)"
+    echo ""
+    echo "Add this public key to your Git hosting service:"
+    cat "${CLAUDE_SSH_KEY}.pub"
+    echo ""
 fi
 
-mkdir -p "$HOST_CC_CONFIG"
+# Allow read access to the Claude SSH key (deny the rest of .ssh)
+# READ_PATHS=(-r "$CLAUDE_SSH_KEY" -r "${CLAUDE_SSH_KEY}.pub")
 
-XTRA_ARGS=""
-if find .venv -mindepth 1 -maxdepth 1 2>/dev/null | read; then
-  XTRA_ARGS='-v "/workspace/.venv"'
-fi
+# Deny access to sensitive paths
+DENY_PATHS=(
+    --deny "$HOME/.ssh"
+    --deny "$HOME/.gnupg"
+    --deny "$HOME/.aws"
+)
 
-CMD='bash -ic "start"'
-if [[ -n "$NO_CLAUDE" ]]; then
-  CMD="bash"
-fi
+# Export SSH environment variables for Claude to use this key
+export GIT_SSH_COMMAND="ssh -i $CLAUDE_SSH_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+export IS_SANDBOX=1
 
-podman run -it --rm \
-    -v "$(pwd):/workspace" \
-    -v "$HOST_CC_CONFIG:/root/.claude" \
-    -v "$DOTFILES_HOME/git:$LOCAL_CONFIG/git" \
-    -v "$DOTFILES_HOME/claude/commands:$LOCAL_CC_CONFIG/commands" \
-    -v "$DOTFILES_HOME/claude/skills:$LOCAL_CC_CONFIG/skills" \
-    $XTRA_ARGS \
-    -e "CLAUDE_CONFIG_DIR=/root/.claude" \
-    -w /workspace \
-    "$IMAGE_NAME" \
-    $CMD
+exec \
+  sbox \
+  "${WRITE_PATHS[@]}" \
+  "${DENY_PATHS[@]}" \
+  -- \
+  claude --dangerously-skip-permissions "$@"

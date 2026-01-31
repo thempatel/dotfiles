@@ -8,10 +8,20 @@ sbox.py - Isolate a process using macOS sandbox-exec (Seatbelt).
 
 See https://github.com/s7ephen/OSX-Sandbox--Seatbelt--Profiles for example profiles.
 
+Reads seatbelt policies from stdin or a file (one per line):
+    +/path/to/dir      Allow read access (subpath for dirs, literal for files)
+    ++/path/to/dir     Allow write access (subpath for dirs, literal for files)
+    +/path/to/dir/     Trailing slash forces subpath (directory) even if path doesn't exist
+    +~regex_pattern    Allow read using regex match
+    ++~regex_pattern   Allow write using regex match
+    -/path/to/dir      Deny all access
+    -~regex_pattern    Deny all access using regex match
+    keychain           Allow keychain access
+
 Examples:
+    echo "+/tmp/output" | sbox.py -- python script.py
+    sbox.py -f policies.txt -- myapp
     sbox.py -- ls -la
-    sbox.py -w /tmp/output -- python script.py
-    sbox.py -w ~/.config/myapp -- myapp
 """
 
 from __future__ import annotations
@@ -43,20 +53,32 @@ class Permission(Enum):
 
     READ = "file-read*"
     WRITE = "file-write*"
-    READ_WRITE = "read-write"  # Convenience for both
+
+
+class MatchType(Enum):
+    """Seatbelt path matching type."""
+
+    LITERAL = "literal"
+    SUBPATH = "subpath"
+    REGEX = "regex"
 
 
 @dataclass
 class PathRule:
     """A rule for a specific path."""
 
-    path: Path
+    path: str  # Can be a path or regex pattern
     action: Action
     permission: Permission
+    match_type: Optional[MatchType] = None  # None = auto-detect from path
 
-    def is_dir(self) -> bool:
-        """Check if path is a directory."""
-        return self.path.is_dir()
+    def get_match_type(self) -> MatchType:
+        """Get the match type, auto-detecting if not specified."""
+        if self.match_type is not None:
+            return self.match_type
+        # Auto-detect: if it's a directory, use subpath; otherwise literal
+        p = Path(self.path)
+        return MatchType.SUBPATH if p.is_dir() else MatchType.LITERAL
 
 
 @dataclass
@@ -71,42 +93,49 @@ class SeatbeltPolicy:
         """Escape a path for Seatbelt policy quoting."""
         return s.replace("\\", "\\\\").replace('"', '\\"')
 
-    def _path_rule(self, action: str, permission: str, path: Path) -> str:
+    def _path_rule(
+        self, action: str, permission: str, path_str: str, match_type: MatchType
+    ) -> str:
         """Generate a single path rule."""
-        path_str = self._quote(str(path))
-        matcher = "subpath" if path.is_dir() else "literal"
-        return f'({action} {permission} ({matcher} "{path_str}"))'
+        quoted = self._quote(path_str)
+        return f'({action} {permission} ({match_type.value} "{quoted}"))'
 
     def add_rule(
-        self, path: Path, action: Action, permission: Permission
-    ) -> "SeatbeltPolicy":
+        self,
+        path: str,
+        action: Action,
+        permission: Permission,
+        match_type: Optional[MatchType] = None,
+    ) -> None:
         """Add a path rule."""
-        self.rules.append(PathRule(path=path, action=action, permission=permission))
-        return self
+        self.rules.append(
+            PathRule(
+                path=path, action=action, permission=permission, match_type=match_type
+            )
+        )
 
-    def allow_read(self, path: Path) -> "SeatbeltPolicy":
+    def allow_read(self, path: str, match_type: Optional[MatchType] = None) -> None:
         """Allow read access to a path."""
-        return self.add_rule(path, Action.ALLOW, Permission.READ)
+        self.add_rule(path, Action.ALLOW, Permission.READ, match_type)
 
-    def allow_write(self, path: Path) -> "SeatbeltPolicy":
+    def allow_write(self, path: str, match_type: Optional[MatchType] = None) -> None:
         """Allow write access to a path."""
-        return self.add_rule(path, Action.ALLOW, Permission.WRITE)
+        self.add_rule(path, Action.ALLOW, Permission.WRITE, match_type)
 
-    def allow_read_write(self, path: Path) -> "SeatbeltPolicy":
-        """Allow read and write access to a path."""
-        return self.add_rule(path, Action.ALLOW, Permission.READ_WRITE)
-
-    def deny_read(self, path: Path) -> "SeatbeltPolicy":
+    def deny_read(self, path: str, match_type: Optional[MatchType] = None) -> None:
         """Deny read access to a path."""
-        return self.add_rule(path, Action.DENY, Permission.READ)
+        self.add_rule(path, Action.DENY, Permission.READ, match_type)
 
-    def deny_write(self, path: Path) -> "SeatbeltPolicy":
+    def deny_write(self, path: str, match_type: Optional[MatchType] = None) -> None:
         """Deny write access to a path."""
-        return self.add_rule(path, Action.DENY, Permission.WRITE)
+        self.add_rule(path, Action.DENY, Permission.WRITE, match_type)
 
-    def deny_all(self, path: Path) -> "SeatbeltPolicy":
-        """Deny all access to a path."""
-        return self.add_rule(path, Action.DENY, Permission.READ_WRITE)
+    def deny_read_write(
+        self, path: str, match_type: Optional[MatchType] = None
+    ) -> None:
+        """Deny read and write access to a path."""
+        self.add_rule(path, Action.DENY, Permission.READ, match_type)
+        self.add_rule(path, Action.DENY, Permission.WRITE, match_type)
 
     def render(self) -> str:
         """Render the complete Seatbelt policy."""
@@ -121,18 +150,12 @@ class SeatbeltPolicy:
 
         # Process rules in order
         for rule in self.rules:
-            if rule.permission == Permission.READ_WRITE:
-                # Expand to both read and write
-                lines.append(
-                    self._path_rule(rule.action.value, "file-read*", rule.path)
+            match_type = rule.get_match_type()
+            lines.append(
+                self._path_rule(
+                    rule.action.value, rule.permission.value, rule.path, match_type
                 )
-                lines.append(
-                    self._path_rule(rule.action.value, "file-write*", rule.path)
-                )
-            else:
-                lines.append(
-                    self._path_rule(rule.action.value, rule.permission.value, rule.path)
-                )
+            )
 
         # System paths that are always needed
         self._add_system_paths(lines)
@@ -175,6 +198,7 @@ class SeatbeltPolicy:
             "/dev/stdout",
             "/dev/stderr",
             "/dev/fd",
+            "/dev/dtracehelper",
         ]:
             lines.append(f'(allow file-write* (literal "{dev}"))')
 
@@ -202,41 +226,121 @@ class SeatbeltPolicy:
         )
 
 
-def seatbelt_policy(
-    *,
-    pwd: Optional[Path] = None,
-    write_paths: Optional[list[Path]] = None,
-    deny_paths: Optional[list[Path]] = None,
-    allow_keychain: bool = False,
-) -> str:
+def parse_path_suffix(path: str) -> tuple[str, Optional[MatchType]]:
     """
-    Generate a Seatbelt policy string.
+    Parse path suffix to determine explicit match type.
+
+    Trailing '/' forces subpath (directory) even if path doesn't exist.
+
+    Returns:
+        Tuple of (cleaned_path, match_type) where match_type is None for auto-detect.
+    """
+    if path.endswith("/"):
+        return (path[:-1], MatchType.SUBPATH)
+    return (path, None)
+
+
+def parse_policy_line(line: str) -> Optional[tuple[str, str, Optional[MatchType]]]:
+    """
+    Parse a single policy line.
+
+    Format:
+        +/path/to/dir      Allow read (auto-detect literal/subpath)
+        ++/path/to/dir     Allow write (auto-detect literal/subpath)
+        +/path/to/dir/     Trailing slash forces subpath (directory)
+        ++/path/to/file:   Trailing colon forces literal (file)
+        +~regex_pattern    Allow read using regex match
+        ++~regex_pattern   Allow write using regex match
+        -/path/to/dir      Deny all access
+        -~regex_pattern    Deny all access using regex match
+        keychain           Allow keychain access (returns special marker)
+        # comment          Ignored
+
+    Returns:
+        Tuple of (action, path, match_type) or None for empty/comment lines.
+        For 'keychain', returns ('keychain', '', None).
+    """
+    line = line.strip()
+    if not line or line.startswith("#"):
+        return None
+
+    if line == "keychain":
+        return ("keychain", "", None)
+
+    if len(line) < 2:
+        return None
+
+    prefix = line[0]
+    rest = line[1:]
+
+    if prefix == "+":
+        # Check for ++ (allow write) vs + (allow read)
+        if rest.startswith("+"):
+            # Check for ++~ (allow write regex)
+            if rest.startswith("+~"):
+                return ("++", rest[2:], MatchType.REGEX)
+            path, match_type = parse_path_suffix(rest[1:])
+            return ("++", path, match_type)
+        # Check for +~ (allow read regex)
+        if rest.startswith("~"):
+            return ("+", rest[1:], MatchType.REGEX)
+        path, match_type = parse_path_suffix(rest)
+        return ("+", path, match_type)
+    elif prefix == "-":
+        # Deny all access - check for regex with -~
+        if rest.startswith("~"):
+            return ("-", rest[1:], MatchType.REGEX)
+        path, match_type = parse_path_suffix(rest)
+        return ("-", path, match_type)
+
+    return None
+
+
+def build_policy_from_lines(lines: list[str]) -> str:
+    """
+    Build a Seatbelt policy from policy lines.
 
     Args:
+        lines: List of policy lines to parse
         pwd: Working directory to allow writes (defaults to cwd)
-        write_paths: Paths to allow write access
-        deny_paths: Paths to deny all access
-        allow_keychain: If True, allow Keychain access
 
     Returns:
         Seatbelt policy as a string
     """
-    if pwd is None:
-        pwd = Path.cwd().resolve()
+    allow_keychain = False
+    policy = SeatbeltPolicy()
 
-    policy = SeatbeltPolicy(allow_keychain=allow_keychain)
+    for line in lines:
+        parsed = parse_policy_line(line)
+        if parsed is None:
+            continue
 
-    # Always allow PWD writes
-    policy.allow_write(pwd)
+        action, path_or_pattern, match_type = parsed
 
-    # Add write paths
-    for p in write_paths or []:
-        policy.allow_write(p)
+        if action == "keychain":
+            allow_keychain = True
+            continue
 
-    # Add deny paths
-    for p in deny_paths or []:
-        policy.deny_all(p)
+        # Expand ~ in paths (but not for regex patterns)
+        if match_type != MatchType.REGEX and path_or_pattern.startswith("~"):
+            path_or_pattern = os.path.expanduser(path_or_pattern)
 
+        # Resolve to absolute path for non-regex
+        if match_type != MatchType.REGEX:
+            p = Path(path_or_pattern)
+            if p.exists():
+                path_or_pattern = str(p.resolve())
+            elif p.parent.exists():
+                path_or_pattern = str(p.parent.resolve() / p.name)
+
+        if action == "++":
+            policy.allow_write(path_or_pattern, match_type)
+        elif action == "+":
+            policy.allow_read(path_or_pattern, match_type)
+        elif action == "-":
+            policy.deny_read_write(path_or_pattern, match_type)
+
+    policy.allow_keychain = allow_keychain
     return policy.render()
 
 
@@ -257,31 +361,27 @@ def check_sandbox_exec() -> None:
         raise typer.Exit(127)
 
 
-def abs_path(p: str) -> Path:
+def read_policy_lines(file_path: Optional[Path]) -> list[str]:
     """
-    Expand ~ and return absolute, symlink-resolved path.
-    For non-existent files, ensure parent exists and return absolute would-be path.
+    Read policy lines from a file or stdin.
+
+    Args:
+        file_path: Path to policy file, or None to read from stdin
+
+    Returns:
+        List of policy lines
     """
-    if p.startswith("~"):
-        p = os.path.expanduser(p)
-
-    path = Path(p)
-
-    if path.exists():
-        return path.resolve()
-    else:
-        parent = path.parent
-        if not parent.exists():
-            typer.echo(f"sbox: parent directory does not exist: {parent}", err=True)
+    if file_path is not None:
+        if not file_path.exists():
+            typer.echo(f"sbox: policy file not found: {file_path}", err=True)
             raise typer.Exit(2)
-        return parent.resolve() / path.name
+        return file_path.read_text().splitlines()
 
+    # Read from stdin if available
+    if not sys.stdin.isatty():
+        return sys.stdin.read().splitlines()
 
-def ensure_paths_exist(paths: list[Path]) -> None:
-    """Ensure files exist so Seatbelt can reference them."""
-    for p in paths:
-        if not p.is_dir() and not p.exists():
-            p.touch()
+    return []
 
 
 app = typer.Typer(
@@ -296,20 +396,10 @@ app = typer.Typer(
 )
 def main(
     ctx: typer.Context,
-    write: Annotated[
-        Optional[list[str]],
-        typer.Option("-w", "--write", help="Allow write access to PATH (repeatable)"),
+    policy_file: Annotated[
+        Optional[Path],
+        typer.Option("-f", "--file", help="Read policies from FILE instead of stdin"),
     ] = None,
-    deny: Annotated[
-        Optional[list[str]],
-        typer.Option("--deny", help="Deny all access to PATH (repeatable)"),
-    ] = None,
-    allow_keychain: Annotated[
-        bool,
-        typer.Option(
-            "--allow-keychain", help="Allow macOS Keychain access (DANGEROUS)"
-        ),
-    ] = False,
     debug: Annotated[
         bool,
         typer.Option(
@@ -317,7 +407,20 @@ def main(
         ),
     ] = False,
 ) -> None:
-    """Run a command in a sandboxed environment."""
+    """
+    Run a command in a sandboxed environment.
+
+    Reads policies from stdin or a file (-f). Each line specifies a rule:
+    +/path/to/dir      Allow read access (auto-detect subpath/literal)
+    ++/path/to/dir     Allow write access (auto-detect subpath/literal)
+    +/path/to/dir/     Trailing slash forces subpath (directory)
+    +~regex_pattern    Allow read using regex match
+    ++~regex_pattern   Allow write using regex match
+    -/path/to/dir      Deny all access
+    -~regex_pattern    Deny all access using regex match
+    keychain           Allow keychain access
+    # comment          Ignored
+    """
     check_macos()
     check_sandbox_exec()
 
@@ -335,22 +438,11 @@ def main(
         typer.echo("Error: No command specified after --", err=True)
         raise typer.Exit(1)
 
-    # Resolve paths
-    pwd = Path.cwd().resolve()
-    write_paths = [abs_path(p) for p in (write or [])]
-    deny_paths_resolved = [abs_path(p) for p in (deny or [])]
-
-    # Ensure files exist for Seatbelt
-    ensure_paths_exist(write_paths)
-    ensure_paths_exist(deny_paths_resolved)
+    # Read policy lines from file or stdin
+    policy_lines = read_policy_lines(policy_file)
 
     # Generate policy
-    policy = seatbelt_policy(
-        pwd=pwd,
-        write_paths=write_paths,
-        deny_paths=deny_paths_resolved,
-        allow_keychain=allow_keychain,
-    )
+    policy = build_policy_from_lines(policy_lines)
 
     if debug:
         typer.echo("DEBUG: Generated Seatbelt policy:", err=True)

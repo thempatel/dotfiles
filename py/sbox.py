@@ -97,6 +97,10 @@ class SeatbeltPolicy:
         self, action: str, permission: str, path_str: str, match_type: MatchType
     ) -> str:
         """Generate a single path rule."""
+        if match_type == MatchType.REGEX:
+            # Only escape quotes for regex, preserve backslashes for regex escapes
+            quoted = path_str.replace('"', '\\"')
+            return f'({action} {permission} ({match_type.value} #"{quoted}"))'
         quoted = self._quote(path_str)
         return f'({action} {permission} ({match_type.value} "{quoted}"))'
 

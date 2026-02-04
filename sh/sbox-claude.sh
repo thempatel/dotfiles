@@ -4,34 +4,49 @@
 set -e
 
 IMAGE_NAME="sbox"
-HOST_CC_CONFIG="$HOME/.config/claude-container"
-LOCAL_CC_CONFIG="/root/.claude"
-LOCAL_CONFIG="/root/.config"
+CONTAINER_NAME="sbox-$$"
 
-if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+# Host paths
+HOST_CLAUDE_CONFIG="$HOME/.config/claude-container"
+
+# Container paths
+CTR_HOME="/home/claude"
+CTR_CLAUDE_CONFIG="$CTR_HOME/.claude"
+CTR_CONFIG="$CTR_HOME/.config"
+
+# Check if image exists, build if not
+if ! container image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
   QUIET=1 "$DOTFILES_HOME/sbox/build.sh"
 fi
 
-mkdir -p "$HOST_CC_CONFIG"
+mkdir -p "$HOST_CLAUDE_CONFIG"
 
-XTRA_ARGS=""
-if find .venv -mindepth 1 -maxdepth 1 2>/dev/null | read; then
-  XTRA_ARGS='-v "/workspace/.venv"'
-fi
+# Start container in detached mode
+container run -d --rm \
+    --name "$CONTAINER_NAME" \
+    --memory 6G \
+    -v "$(pwd -P):/workspace" \
+    -v "$HOST_CLAUDE_CONFIG:$CTR_CLAUDE_CONFIG" \
+    -w /workspace \
+    "$IMAGE_NAME" \
+    sleep infinity
 
+# Cleanup on exit
+trap "container stop $CONTAINER_NAME 2>/dev/null" EXIT
+
+# Rsync into container, resolving symlinks
+sync_to_container() {
+  rsync -aL -e "container exec -i $CONTAINER_NAME" "$1" ":$2"
+}
+
+sync_to_container "$DOTFILES_HOME/git/" "$CTR_CONFIG/git/"
+sync_to_container "$DOTFILES_HOME/claude/commands/" "$CTR_CLAUDE_CONFIG/commands/"
+sync_to_container "$DOTFILES_HOME/claude/skills/" "$CTR_CLAUDE_CONFIG/skills/"
+
+# Attach to container
 CMD='bash -ic "start"'
 if [[ -n "$NO_CLAUDE" ]]; then
   CMD="bash"
 fi
 
-podman run -it --rm \
-    -v "$(pwd):/workspace" \
-    -v "$HOST_CC_CONFIG:/root/.claude" \
-    -v "$DOTFILES_HOME/git:$LOCAL_CONFIG/git" \
-    -v "$DOTFILES_HOME/claude/commands:$LOCAL_CC_CONFIG/commands" \
-    -v "$DOTFILES_HOME/claude/skills:$LOCAL_CC_CONFIG/skills" \
-    $XTRA_ARGS \
-    -e "CLAUDE_CONFIG_DIR=/root/.claude" \
-    -w /workspace \
-    "$IMAGE_NAME" \
-    $CMD
+container exec -it -w /workspace "$CONTAINER_NAME" bash -c "$CMD"

@@ -1,6 +1,5 @@
 FROM golang:1.25.5-trixie AS golang
 FROM rust:1.92.0-slim-trixie AS rust
-
 FROM debian:stable-20251208
 
 # Install base packages and build tools
@@ -16,8 +15,11 @@ RUN apt-get update && apt-get install -y \
   linux-headers-generic \
   pkgconf \
   protobuf-compiler \
+  sudo \
   unzip \
   wget
+
+SHELL ["/bin/bash", "-ic"]
 
 # Copy Go from official image
 COPY --from=golang /usr/local/go /usr/local/go
@@ -32,8 +34,16 @@ ENV RUSTUP_HOME="/usr/local/rustup"
 ENV CARGO_HOME="/usr/local/cargo"
 ENV PATH="/usr/local/cargo/bin:${PATH}"
 
-# Copy Node.js from official image
-ENV BASH_ENV /root/.bash_env
+# Create non-root user and switch to it
+RUN useradd -m -s /bin/bash claude && \
+    echo "claude ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
+    mkdir -p /workspace && chown claude:claude /workspace
+
+USER claude
+ENV HOME="/home/claude"
+ENV BASH_ENV="/home/claude/.bash_env"
+WORKDIR /home/claude
+
 RUN touch "${BASH_ENV}"
 
 # Download and install nvm
@@ -48,11 +58,9 @@ RUN curl -fsSL https://claude.ai/install.sh | bash
 # Install uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Copy start script to PATH
-COPY start.sh /usr/local/bin/start
-RUN chmod +x /usr/local/bin/start
-# Copy bashrc configuration
-COPY bashrc.sh /root/.bashrc
+# Copy start script and bashrc
+COPY --chown=claude:claude start.sh /usr/local/bin/start
+COPY --chown=claude:claude bashrc.sh /home/claude/.bashrc
 
 WORKDIR /workspace
 

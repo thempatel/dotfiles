@@ -2,7 +2,7 @@
 #
 
 if [[ -n $QUIET ]]; then
-  EXTRA_ARGS='-q'
+  EXTRA_ARGS='--progress none'
 fi
 
-docker build $EXTRA_ARGS -t sbox "$(dirname "$0")"
+container build $EXTRA_ARGS -t sbox "$(dirname "$0")"

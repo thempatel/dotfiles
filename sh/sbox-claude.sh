@@ -36,12 +36,12 @@ trap "container stop $CONTAINER_NAME 2>/dev/null" EXIT
 
 # Rsync into container, resolving symlinks
 sync_to_container() {
-  rsync -aL -e "container exec -i $CONTAINER_NAME" "$1" ":$2"
+  rsync -aL --blocking-io -e "container exec -i" "$1" "$CONTAINER_NAME:$2"
 }
 
-sync_to_container "$DOTFILES_HOME/git/" "$CTR_CONFIG/git/"
-sync_to_container "$DOTFILES_HOME/claude/commands/" "$CTR_CLAUDE_CONFIG/commands/"
-sync_to_container "$DOTFILES_HOME/claude/skills/" "$CTR_CLAUDE_CONFIG/skills/"
+sync_to_container "$HOME/.config/git/" "$CTR_HOME/.config/git/"
+sync_to_container "$HOME/.claude/commands/" "$CTR_CLAUDE_CONFIG/commands/"
+sync_to_container "$HOME/.claude/skills/" "$CTR_CLAUDE_CONFIG/skills/"
 
 # Attach to container
 CMD='bash -ic "start"'

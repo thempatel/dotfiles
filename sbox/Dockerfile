@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
   linux-headers-generic \
   pkgconf \
   protobuf-compiler \
+  rsync \
   sudo \
   unzip \
   wget

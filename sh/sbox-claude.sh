@@ -29,10 +29,10 @@ container run -d --rm \
     -v "$HOST_CLAUDE_CONFIG:$CTR_CLAUDE_CONFIG" \
     -w /workspace \
     "$IMAGE_NAME" \
-    sleep infinity
+    sleep infinity >/dev/null
 
 # Cleanup on exit
-trap "container stop $CONTAINER_NAME 2>/dev/null" EXIT
+trap "echo 'stopping $CONTAINER_NAME'; container stop $CONTAINER_NAME 2>/dev/null" EXIT
 
 # Rsync into container, resolving symlinks
 sync_to_container() {

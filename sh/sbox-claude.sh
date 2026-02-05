@@ -1,100 +1,52 @@
 #!/usr/bin/env bash
 #
-# Run Claude Code in a macOS sandbox using sbox (sandbox-exec wrapper).
-#
-# Usage:
-#   sbox-claude.sh [options] [-- claude args...]
-#
-# Options:
-#   --test    Test mode: show policy and run a dummy command instead of claude
 
 set -e
 
-# Parse arguments
-TEST_MODE=false
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --test)
-            TEST_MODE=true
-            shift
-            ;;
-        --)
-            shift
-            break
-            ;;
-        *)
-            break
-            ;;
-    esac
-done
+IMAGE_NAME="sbox"
+CONTAINER_NAME="sbox-$$"
 
-# Pre-compute paths to avoid issues with command substitution in heredocs
-CWD="$(pwd)"
-CLAUDE_CONFIG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-mkdir -p "$CLAUDE_CONFIG"
+# Host paths
+HOST_CLAUDE_CONFIG="$HOME/.config/claude-container"
 
-# Go module cache (needed for go get/build/mod download)
-GOMODCACHE="${GOMODCACHE:-${GOPATH:-$HOME/go}/pkg/mod}"
+# Container paths
+CTR_HOME="/home/claude"
+CTR_CLAUDE_CONFIG="$CTR_HOME/.claude"
+CTR_CONFIG="$CTR_HOME/.config"
 
-# Set up dedicated SSH key for Claude
-CLAUDE_SSH_KEY="$HOME/.ssh/claude_ecdsa"
-if [[ ! -f "$CLAUDE_SSH_KEY" ]]; then
-    echo "Creating dedicated SSH key for Claude at $CLAUDE_SSH_KEY"
-    ssh-keygen -t ecdsa -f "$CLAUDE_SSH_KEY" -N "" -C "claude@$(hostname)"
-    echo ""
-    echo "Add this public key to your Git hosting service:"
-    cat "${CLAUDE_SSH_KEY}.pub"
-    echo ""
+# Check if image exists, build if not
+if ! container image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+  QUIET=1 "$DOTFILES_HOME/sbox/build.sh"
 fi
 
-# Export SSH environment variables for Claude to use this key
-export GIT_SSH_COMMAND="ssh -i $CLAUDE_SSH_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-export IS_SANDBOX=1
+mkdir -p "$HOST_CLAUDE_CONFIG"
 
-# Build policy file
-# Note: trailing / forces subpath (directory) even if path doesn't exist
-POLICY=$(cat <<EOF
-# Allow writes to the current working directory
-++$CWD/
+# Start container in detached mode
+container run -d --rm \
+    --name "$CONTAINER_NAME" \
+    --memory 6G \
+    -v "$(pwd -P):/workspace" \
+    -v "$HOST_CLAUDE_CONFIG:$CTR_CLAUDE_CONFIG" \
+    -w /workspace \
+    "$IMAGE_NAME" \
+    sleep infinity >/dev/null
 
-# Claude config directory and state files
-++$CLAUDE_CONFIG/
-++$HOME/.claude.json
-++$HOME/.claude.lock
-++~^$HOME/.claude.json.*
-++$HOME/.local/share/claude/
-++$HOME/.local/state/claude/
+# Cleanup on exit
+trap "echo 'stopping $CONTAINER_NAME'; container stop $CONTAINER_NAME 2>/dev/null" EXIT
 
-# Common development paths (may not exist yet, so force subpath with /)
-++$CWD/.venv/
-++$CWD/node_modules/
+# Rsync into container, resolving symlinks
+sync_to_container() {
+  rsync -aL --blocking-io -e "container exec -i" "$1" "$CONTAINER_NAME:$2"
+}
 
-# Go module cache
-++$GOMODCACHE/
+sync_to_container "$HOME/.config/git/" "$CTR_HOME/.config/git/"
+sync_to_container "$HOME/.claude/commands/" "$CTR_CLAUDE_CONFIG/commands/"
+sync_to_container "$HOME/.claude/skills/" "$CTR_CLAUDE_CONFIG/skills/"
 
-# Rust/Cargo cache
-++$HOME/.cargo/
-
-# Deny access to sensitive paths (but allow Claude's SSH key)
--$HOME/.ssh/
-+$CLAUDE_SSH_KEY
-+${CLAUDE_SSH_KEY}.pub
--$HOME/.gnupg/
--$HOME/.aws/
-EOF
-)
-
-if [[ "$TEST_MODE" == true ]]; then
-    echo "=== Test Mode ==="
-    echo ""
-    echo "Policy file contents:"
-    echo "---------------------"
-    echo "$POLICY"
-    echo "---------------------"
-    echo ""
-    echo "Verifying policy with sbox --debug..."
-    echo ""
-    sbox --debug -f <(echo "$POLICY") -- echo "Sandbox OK: can execute commands"
-else
-    exec sbox -f <(echo "$POLICY") -- claude --dangerously-skip-permissions "$@"
+# Attach to container
+CMD='bash -ic "start"'
+if [[ -n "$NO_CLAUDE" ]]; then
+  CMD="bash"
 fi
+
+container exec -it -w /workspace "$CONTAINER_NAME" bash -c "$CMD"

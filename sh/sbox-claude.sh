@@ -45,9 +45,4 @@ sync_to_container "$HOME/.claude/commands/" "$CTR_CLAUDE_CONFIG/commands/"
 sync_to_container "$HOME/.claude/skills/" "$CTR_CLAUDE_CONFIG/skills/"
 
 # Attach to container
-CMD='bash -ic "start"'
-if [[ -n "$NO_CLAUDE" ]]; then
-  CMD="bash"
-fi
-
-container exec -it -w /workspace "$CONTAINER_NAME" bash -c "$CMD"
+container exec -it -w /workspace "$CONTAINER_NAME" /bin/bash

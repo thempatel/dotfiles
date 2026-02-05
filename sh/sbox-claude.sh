@@ -32,10 +32,11 @@ container run -d --rm \
     sleep infinity >/dev/null
 
 # Cleanup on exit
-trap "echo 'stopping $CONTAINER_NAME'; container stop $CONTAINER_NAME 2>/dev/null" EXIT
+trap "container stop $CONTAINER_NAME >/dev/null 2>&1 &" EXIT
 
 # Rsync into container, resolving symlinks
 sync_to_container() {
+  echo "  $1 -> $2"
   rsync -aL --blocking-io -e "container exec -i" "$1" "$CONTAINER_NAME:$2"
 }
 

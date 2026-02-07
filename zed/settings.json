@@ -31,6 +31,7 @@
   "buffer_font_features": {
     "calt": false,
   },
+  "soft_wrap": "editor_width",
   "languages": {
     "HTML": {
       "format_on_save": "off",

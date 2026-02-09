@@ -47,6 +47,9 @@
     "Python": {
       "language_servers": ["ty"],
     },
+    "TypeScript": {
+      "language_servers": ["tsgo", "vtsls"],
+    },
   },
   "git": {
     "inline_blame": {

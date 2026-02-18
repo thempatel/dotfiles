@@ -24,4 +24,14 @@ sbox-bootstrap() {
     echo "Found pnpm-lock.yaml, installing pnpm..."
     npm install -g pnpm@latest-10
   fi
+
+  if [[ -f .python-version ]]; then
+    echo "Found .python-version, installing python..."
+    uv python install
+  fi
+
+  if ! uv python find >/dev/null 2>&1; then
+    echo "No global python found, installing default..."
+    uv python install
+  fi
 }

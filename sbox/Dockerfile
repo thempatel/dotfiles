@@ -37,8 +37,8 @@ ENV PATH="/usr/local/cargo/bin:${PATH}"
 
 # Create non-root user and switch to it
 RUN useradd -m -s /bin/bash claude && \
-    echo "claude ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
-    mkdir -p /workspace && chown claude:claude /workspace
+  echo "claude ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
+  mkdir -p /workspace && chown claude:claude /workspace
 
 USER claude
 ENV HOME="/home/claude"
@@ -49,18 +49,12 @@ RUN touch "${BASH_ENV}"
 
 # Download and install nvm
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | PROFILE="${BASH_ENV}" bash
-RUN echo "24" > .nvmrc
-RUN bash -lc 'nvm install'
 
 RUN sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b ~/.local/bin
 RUN curl -fsSL https://deno.land/install.sh | sh
 RUN curl -fsSL https://claude.ai/install.sh | bash
+RUN curl -fsSL https://astral.sh/uv/install.sh | sh
 
-# Install uv
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Copy start script and bashrc
-COPY --chown=claude:claude start.sh /usr/local/bin/start
 COPY --chown=claude:claude bashrc.sh /home/claude/.bashrc
 
 WORKDIR /workspace

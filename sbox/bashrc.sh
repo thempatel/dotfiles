@@ -31,7 +31,8 @@ sbox-bootstrap() {
   fi
 
   if ! uv python find >/dev/null 2>&1; then
-    echo "No global python found, installing default..."
-    uv python install --default --preview
+    echo "No global python found, creating global venv..."
+    uv venv "$HOME/.venv"
+    export PATH="$HOME/.venv/bin:$PATH"
   fi
 }

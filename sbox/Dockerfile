@@ -55,8 +55,6 @@ RUN curl -fsSL https://deno.land/install.sh | sh
 RUN curl -fsSL https://claude.ai/install.sh | bash
 RUN curl -fsSL https://astral.sh/uv/install.sh | sh
 
-COPY --chown=claude:claude bashrc.sh /home/claude/.bashrc
-
 WORKDIR /workspace
 
 CMD ["/bin/bash"]

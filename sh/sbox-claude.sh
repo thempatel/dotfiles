@@ -68,6 +68,7 @@ container run -d --rm \
     -v "$(pwd -P):/workspace" \
     -v "$HOST_CLAUDE_CONFIG:$CTR_CLAUDE_CONFIG" \
     -v "$DOTFILES_HOME/sbox/scripts:/opt/sbox-scripts" \
+    -v "$DOTFILES_HOME/sbox/bashrc.sh:$CTR_HOME/.bashrc" \
     "${BARE_VOLUME_ARGS[@]}" \
     -w /workspace \
     "$IMAGE_NAME" \

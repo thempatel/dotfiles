@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
-#
-# Usage: sbox-claude [-b dir] ...
-#   -b dir   Create a bare (empty) mount over dir inside /workspace,
-#            preventing the host content from being visible in the container.
-#            Can be specified multiple times. Paths are relative to /workspace.
 
 set -e
 
-BARE_MOUNTS=()
+# OS-specific dependency directories to mask with empty volumes
+BARE_DIR_NAMES=(node_modules .venv __pycache__ .pnpm-store)
 
-while getopts ":b:" opt; do
-  case $opt in
-    b) BARE_MOUNTS+=("$OPTARG") ;;
-    *) echo "Usage: sbox-claude [-b dir] ..." >&2; exit 1 ;;
-  esac
+# Build -name args for find
+FIND_ARGS=()
+for i in "${!BARE_DIR_NAMES[@]}"; do
+  [[ $i -gt 0 ]] && FIND_ARGS+=(-o)
+  FIND_ARGS+=(-name "${BARE_DIR_NAMES[$i]}")
 done
-shift $((OPTIND - 1))
+
+# Find matching directories at top level only
+BARE_MOUNTS=()
+while IFS= read -r dir; do
+  BARE_MOUNTS+=("$dir")
+done < <(find "$(pwd -P)" -maxdepth 1 -type d \( "${FIND_ARGS[@]}" \) | sed "s|^$(pwd -P)/||")
 
 IMAGE_NAME="sbox"
 CONTAINER_NAME="sbox-$$"

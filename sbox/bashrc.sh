@@ -32,6 +32,6 @@ sbox-bootstrap() {
 
   if ! uv python find >/dev/null 2>&1; then
     echo "No global python found, installing default..."
-    uv python install
+    uv python install --default --preview
   fi
 }

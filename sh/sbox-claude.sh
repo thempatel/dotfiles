@@ -68,7 +68,6 @@ container run -d --rm \
     -v "$(pwd -P):/workspace" \
     -v "$HOST_CLAUDE_CONFIG:$CTR_CLAUDE_CONFIG" \
     -v "$DOTFILES_HOME/sbox/scripts:/opt/sbox-scripts" \
-    -v "$DOTFILES_HOME/sbox/bashrc.sh:$CTR_HOME/.bashrc" \
     "${BARE_VOLUME_ARGS[@]}" \
     -w /workspace \
     "$IMAGE_NAME" \
@@ -83,6 +82,7 @@ sync_to_container() {
   rsync -aL --blocking-io -e "container exec -i" "$1" "$CONTAINER_NAME:$2"
 }
 
+sync_to_container "$DOTFILES_HOME/sbox/bashrc.sh" "$CTR_HOME/.bashrc"
 sync_to_container "$HOME/.config/git/" "$CTR_HOME/.config/git/"
 sync_to_container "$HOME/.claude/commands/" "$CTR_CLAUDE_CONFIG/commands/"
 sync_to_container "$HOME/.claude/skills/" "$CTR_CLAUDE_CONFIG/skills/"

@@ -63,6 +63,18 @@
         "arguments": ["beta", "lsp"],
       },
     },
+    "rust-analyzer": {
+      "initialization_options": {
+        "rustc": {
+          "source": "discover",
+        },
+        "server": {
+          "extraEnv": {
+            "RUSTUP_TOOLCHAIN": "nightly",
+          },
+        },
+      },
+    },
     "vtsls": {
       "settings": {
         "vtsls": {

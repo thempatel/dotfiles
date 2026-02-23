@@ -61,6 +61,10 @@ for dir in "${BARE_MOUNTS[@]}"; do
   BARE_VOLUME_ARGS+=(--mount "type=volume,source=$vol_name,target=/workspace/$dir")
 done
 
+# Optional extra mounts
+EXTRA_MOUNT_ARGS=()
+[[ -d "$HOME/.aws" ]] && EXTRA_MOUNT_ARGS+=(-v "$HOME/.aws:$CTR_HOME/.aws:ro")
+
 # Start container in detached mode
 container run -d --rm \
     --name "$CONTAINER_NAME" \
@@ -68,6 +72,7 @@ container run -d --rm \
     -v "$(pwd -P):/workspace" \
     -v "$HOST_CLAUDE_CONFIG:$CTR_CLAUDE_CONFIG" \
     -v "$DOTFILES_HOME/sbox/scripts:/opt/sbox-scripts" \
+    ${EXTRA_MOUNT_ARGS[@]+"${EXTRA_MOUNT_ARGS[@]}"} \
     "${BARE_VOLUME_ARGS[@]}" \
     -w /workspace \
     "$IMAGE_NAME" \

@@ -1,3 +1,4 @@
+FROM amazon/aws-cli AS awscli
 FROM golang:1.25.5-trixie AS golang
 FROM rust:1.92.0-slim-trixie AS rust
 FROM debian:stable-20251208
@@ -27,6 +28,10 @@ COPY --from=golang /usr/local/go /usr/local/go
 ENV PATH="/usr/local/go/bin:${PATH}"
 ENV GOPATH="/go"
 ENV PATH="${GOPATH}/bin:${PATH}"
+
+# Copy AWS CLI from official image
+COPY --from=awscli /usr/local/aws-cli /usr/local/aws-cli
+RUN ln -s /usr/local/aws-cli/v2/current/bin/aws /usr/local/bin/aws
 
 # Copy Rust from official image
 COPY --from=rust /usr/local/rustup /usr/local/rustup

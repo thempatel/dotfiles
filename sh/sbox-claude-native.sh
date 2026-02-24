@@ -40,7 +40,6 @@ fi
 DENY_PATHS=(
     --deny "$HOME/.ssh"
     --deny "$HOME/.gnupg"
-    --deny "$HOME/.aws"
 )
 
 # Export SSH environment variables for Claude to use this key

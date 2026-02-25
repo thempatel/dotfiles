@@ -93,7 +93,11 @@ function stow(
   dryRun = false,
   pipe = false,
 ): Deno.CommandOutput {
-  const resolved = path.join(root, source);
+  // GNU stow only accepts single-level package names, so for multi-level
+  // sources like "configs/ssh", use the parent as cwd and basename as package
+  const stowDir = path.join(root, path.dirname(source));
+  const pkg = path.basename(source);
+  const resolved = path.join(stowDir, pkg);
   const resolvedTarget = resolveTilde(target);
 
   try {
@@ -114,7 +118,7 @@ function stow(
     '--dotfiles',
     '-t',
     path.resolve(resolvedTarget),
-    source,
+    pkg,
   ];
 
   if (dryRun) {
@@ -133,7 +137,7 @@ function stow(
   const stdio = pipe ? 'piped' as const : 'inherit' as const;
   const command = new Deno.Command(STOW_BIN, {
     args,
-    cwd: root,
+    cwd: stowDir,
     stdout: stdio,
     stderr: stdio,
   });

@@ -4,21 +4,20 @@
     "allow": [
       "WebSearch",
       "WebFetch",
-
       "Skill(creating-a-plan)",
       "Skill(implementing-a-plan)",
       "Skill(github)",
       "Skill(linear)",
-
       "Read(~/.claude/skills)",
-
       "Bash(git:*)",
       "Bash(mkdir:*)",
       "Bash(gh pr:*)",
       "Bash(find:*)",
       "Bash(grep:*)"
     ],
-    "ask": ["Bash(rm:*)"]
+    "ask": [
+      "Bash(rm:*)"
+    ]
   },
   "alwaysThinkingEnabled": false,
   "autoUpdates": true

@@ -50,5 +50,6 @@ exec \
   sbox \
   "${WRITE_PATHS[@]}" \
   "${DENY_PATHS[@]}" \
+  --allow-keychain \
   -- \
   claude --dangerously-skip-permissions "$@"

@@ -13,6 +13,15 @@ type StowConfig = {
   targets: Stowable[];
 };
 
+type RegisteredProject = {
+  name: string;
+  configPath: string;
+  root: string;
+  config: StowConfig;
+};
+
+const REGISTRY_DIR = path.join(Deno.env.get('HOME')!, '.config', 'mystow');
+
 function getBin(name: string): string {
   const command = new Deno.Command('which', {
     args: [name],
@@ -73,16 +82,6 @@ function getConfigPath(): string {
   }
 }
 
-function getTargetForSource(config: StowConfig, source: string): string {
-  const found = config.targets.find((t) => t.source === source);
-  if (!found) {
-    throw new Error(
-      `No target found for source "${source}" in config. Provide one via --target`,
-    );
-  }
-  return found.target;
-}
-
 const STOW_BIN = getBin('stow');
 
 function stow(
@@ -91,7 +90,9 @@ function stow(
   target: string,
   adopt: boolean,
   del: boolean,
-): void {
+  dryRun = false,
+  pipe = false,
+): Deno.CommandOutput {
   const resolved = path.join(root, source);
   const resolvedTarget = resolveTilde(target);
 
@@ -116,55 +117,241 @@ function stow(
     source,
   ];
 
+  if (dryRun) {
+    args.unshift('-n');
+  }
+
   if (adopt) {
-    args.splice(3, 0, '--adopt');
+    args.splice(dryRun ? 4 : 3, 0, '--adopt');
   }
 
   if (del) {
-    args.splice(1, 1, '-D');
+    const idx = args.indexOf('-R');
+    args.splice(idx, 1, '-D');
   }
 
+  const stdio = pipe ? 'piped' as const : 'inherit' as const;
   const command = new Deno.Command(STOW_BIN, {
     args,
     cwd: root,
-    stdout: 'inherit',
-    stderr: 'inherit',
+    stdout: stdio,
+    stderr: stdio,
   });
 
-  const { success } = command.outputSync();
-  if (!success) {
+  const result = command.outputSync();
+  if (!result.success) {
     throw new Error(`stow failed`);
+  }
+  return result;
+}
+
+function registerProject(configPath: string, name?: string): void {
+  const resolved = path.resolve(configPath);
+
+  // Validate the config loads properly
+  loadConfig(resolved);
+
+  const projectName = name || path.basename(path.dirname(resolved));
+
+  Deno.mkdirSync(REGISTRY_DIR, { recursive: true });
+
+  const linkPath = path.join(REGISTRY_DIR, projectName);
+
+  // Remove existing symlink if present
+  try {
+    Deno.lstatSync(linkPath);
+    Deno.removeSync(linkPath);
+  } catch {
+    // doesn't exist, that's fine
+  }
+
+  Deno.symlinkSync(resolved, linkPath);
+  console.log(`Registered "${projectName}" -> ${resolved}`);
+}
+
+function listRegisteredProjects(): RegisteredProject[] {
+  try {
+    Deno.statSync(REGISTRY_DIR);
+  } catch {
+    return [];
+  }
+
+  const projects: RegisteredProject[] = [];
+
+  for (const entry of Deno.readDirSync(REGISTRY_DIR)) {
+    const linkPath = path.join(REGISTRY_DIR, entry.name);
+    try {
+      const configPath = Deno.readLinkSync(linkPath);
+      // Validate symlink target exists
+      Deno.statSync(configPath);
+      const config = loadConfig(configPath);
+      projects.push({
+        name: entry.name,
+        configPath,
+        root: path.dirname(configPath),
+        config,
+      });
+    } catch {
+      console.warn(`Warning: stale registry entry "${entry.name}", skipping`);
+    }
+  }
+
+  projects.sort((a, b) => a.name.localeCompare(b.name));
+  return projects;
+}
+
+function isStowed(root: string, stowable: Stowable): boolean {
+  // Dry-run a restow: stow emits UNLINK lines for already-stowed items
+  try {
+    const result = stow(
+      root,
+      stowable.source,
+      stowable.target,
+      false,
+      false,
+      true,
+      true,
+    );
+    const output = new TextDecoder().decode(result.stderr);
+    return output.includes('UNLINK:');
+  } catch {
+    return false;
   }
 }
 
-function main() {
+async function interactiveMode(
+  projects: RegisteredProject[],
+): Promise<void> {
+  const { checkbox } = await import('@inquirer/prompts');
+
+  if (projects.length === 0) {
+    console.log(
+      'No registered projects. Use "stow! register" to register a project.',
+    );
+    return;
+  }
+
+  let selectedProjects: RegisteredProject[];
+  if (projects.length === 1) {
+    selectedProjects = projects;
+  } else {
+    try {
+      const selectedNames: string[] = await checkbox({
+        message: 'Select projects to manage',
+        choices: projects.map((p) => ({
+          name: p.name,
+          value: p.name,
+        })),
+      });
+
+      selectedProjects = projects.filter((p) => selectedNames.includes(p.name));
+    } catch (e) {
+      if (e instanceof Error && e.name === 'ExitPromptError') {
+        return;
+      }
+      throw e;
+    }
+
+    if (selectedProjects.length === 0) {
+      console.log('No projects selected.');
+      return;
+    }
+  }
+
+  for (const project of selectedProjects) {
+    const stowStates = project.config.targets.map((t) => ({
+      stowable: t,
+      wasStowed: isStowed(project.root, t),
+    }));
+
+    let selected: string[];
+    try {
+      selected = await checkbox({
+        message: `[${project.name}] Toggle items`,
+        choices: stowStates.map(({ stowable, wasStowed }) => ({
+          name: `${stowable.source} -> ${stowable.target}`,
+          value: stowable.source,
+          checked: wasStowed,
+        })),
+      });
+    } catch (e) {
+      if (e instanceof Error && e.name === 'ExitPromptError') {
+        return;
+      }
+      throw e;
+    }
+
+    for (const { stowable, wasStowed } of stowStates) {
+      const nowSelected = selected.includes(stowable.source);
+
+      if (!wasStowed && nowSelected) {
+        console.log(`Stowing ${stowable.source}...`);
+        stow(project.root, stowable.source, stowable.target, false, false);
+      } else if (wasStowed && !nowSelected) {
+        console.log(`Unstowing ${stowable.source}...`);
+        stow(project.root, stowable.source, stowable.target, false, true);
+      }
+    }
+  }
+}
+
+function projectFromConfig(configPath: string): RegisteredProject {
+  const resolved = path.resolve(configPath);
+  const config = loadConfig(resolved);
+  return {
+    name: path.basename(path.dirname(resolved)),
+    configPath: resolved,
+    root: path.dirname(resolved),
+    config,
+  };
+}
+
+async function main() {
   const program = new Command();
 
   program
-    .name('stow')
+    .name('stow!')
     .description('Manage dotfiles with GNU Stow')
     .option('-c, --config <path>', 'path to stow.yaml config file')
-    .option('-s, --src <source>', 'source directory to stow')
-    .option('-t, --target <target>', 'target directory for stowing')
+    .option('-y, --yes', 'non-interactive mode, stow all targets', false)
     .option('-d, --delete', 'delete existing links', false)
     .option('-a, --adopt', 'adopt existing files into stow directory', false)
-    .parse(Deno.args, { from: 'user' });
+    .action(async () => {
+      const opts = program.opts<{
+        config?: string;
+        yes: boolean;
+        delete: boolean;
+        adopt: boolean;
+      }>();
 
-  const options = program.opts();
+      // -c narrows to a single project, otherwise use all registered projects
+      const projects = opts.config
+        ? [projectFromConfig(opts.config)]
+        : listRegisteredProjects();
 
-  const configPath = options.config || getConfigPath();
-  const root = path.dirname(path.resolve(configPath));
+      if (opts.yes) {
+        for (const project of projects) {
+          for (const t of project.config.targets) {
+            stow(project.root, t.source, t.target, opts.adopt, opts.delete);
+          }
+        }
+        return;
+      }
 
-  const config = loadConfig(configPath);
+      await interactiveMode(projects);
+    });
 
-  if (options.src) {
-    const target = options.target || getTargetForSource(config, options.src);
-    return stow(root, options.src, target, options.adopt, options.delete);
-  }
+  // register subcommand
+  program
+    .command('register [name]')
+    .description('Register a project in the stow registry')
+    .option('-c, --config <path>', 'path to stow.yaml config file')
+    .action((name: string | undefined, opts: { config?: string }) => {
+      const configPath = opts.config || getConfigPath();
+      registerProject(configPath, name);
+    });
 
-  for (const stowable of config.targets) {
-    stow(root, stowable.source, stowable.target, options.adopt, options.del);
-  }
+  await program.parseAsync(Deno.args, { from: 'user' });
 }
 
-main();
+await main();

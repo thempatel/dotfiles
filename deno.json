@@ -11,6 +11,7 @@
     "@std/testing": "jsr:@std/testing@^1.0.16",
     "@std/yaml": "jsr:@std/yaml@^1.0.10",
     "@zod/zod": "jsr:@zod/zod@^4.1.12",
+    "@inquirer/prompts": "npm:@inquirer/prompts@^7",
     "commander": "https://esm.sh/commander@14.0.2",
     "@std/path": "jsr:@std/path@^1.1.2",
     "ink": "npm:ink@^6.2.3",

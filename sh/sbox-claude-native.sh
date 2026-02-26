@@ -8,6 +8,16 @@ set -e
 # Allow writes to the current working directory
 WRITE_PATHS=(-w "$(pwd)")
 
+# If inside a git worktree, the real .git metadata (index, refs, objects)
+# lives in the main repo's .git/worktrees/<name>/ directory, which is
+# outside $(pwd). Allow writes there too so git stash/commit/etc. work.
+GIT_COMMON_DIR="$(git rev-parse --git-common-dir 2>/dev/null)" || true
+GIT_DIR="$(git rev-parse --git-dir 2>/dev/null)" || true
+if [[ -n "$GIT_DIR" && -n "$GIT_COMMON_DIR" && "$GIT_DIR" != "$GIT_COMMON_DIR" ]]; then
+    WRITE_PATHS+=(-w "$GIT_DIR")
+    WRITE_PATHS+=(-w "$GIT_COMMON_DIR")
+fi
+
 # Claude config directory and state file
 CLAUDE_CONFIG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 mkdir -p "$CLAUDE_CONFIG"
@@ -17,6 +27,7 @@ WRITE_PATHS+=(-w "$HOME/.claude.json")
 # Allow writes to common development paths if they exist
 [[ -d ".venv" ]] && WRITE_PATHS+=(-w "$(pwd)/.venv")
 [[ -d "node_modules" ]] && WRITE_PATHS+=(-w "$(pwd)/node_modules")
+[[ -d "$HOME/.proto" ]] && WRITE_PATHS+=(-w "$HOME/.proto")
 
 # Go module cache (needed for go get/build/mod download)
 GOMODCACHE="${GOMODCACHE:-${GOPATH:-$HOME/go}/pkg/mod}"
@@ -44,7 +55,6 @@ DENY_PATHS=(
 
 # Export SSH environment variables for Claude to use this key
 export GIT_SSH_COMMAND="ssh -i $CLAUDE_SSH_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-export IS_SANDBOX=1
 
 exec \
   sbox \

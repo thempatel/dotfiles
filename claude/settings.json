@@ -15,10 +15,9 @@
       "Bash(find:*)",
       "Bash(grep:*)"
     ],
-    "ask": [
-      "Bash(rm:*)"
-    ]
+    "ask": ["Bash(rm:*)"]
   },
   "alwaysThinkingEnabled": false,
-  "autoUpdates": true
+  "autoUpdates": true,
+  "skipDangerousModePermissionPrompt": true
 }

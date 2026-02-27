@@ -55,5 +55,4 @@ brew "xz"
 brew "yq"
 brew "zoxide"
 
-cask "keycastr"
 cask "maccy"

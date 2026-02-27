@@ -187,18 +187,29 @@ class SeatbeltPolicy:
         )
 
     def _add_keychain_rules(self, lines: list[str]) -> None:
-        """Add Keychain access rules."""
+        """Add Keychain access rules.
+
+        Service names and paths are derived from Apple's own sandbox profiles:
+        /System/Library/Sandbox/Profiles/application.sb
+        /System/Library/Sandbox/Profiles/com.apple.security.KeychainStasher.sb
+        /System/Library/Sandbox/Profiles/com.apple.securityd.sb
+        """
         home_str = self._quote(str(self._home))
-        lines.append(f'(allow file-read* (subpath "{home_str}/Library/Keychains"))')
-        lines.append('(allow file-read* (subpath "/Library/Keychains"))')
+
+        # Keychain database files (reads already allowed by default)
         lines.append(f'(allow file-write* (subpath "{home_str}/Library/Keychains"))')
-        lines.append("(allow system-mac-syscall (syscall-number 73))")
-        lines.append('(allow mach-lookup (global-name "com.apple.securityd"))')
+
+        # Mach services for Security framework / Keychain operations
+        lines.append('(allow mach-lookup (global-name "com.apple.securityd.xpc"))')
+        lines.append('(allow mach-lookup (global-name "com.apple.SecurityServer"))')
+        lines.append('(allow mach-lookup (global-name "com.apple.trustd.agent"))')
+        lines.append('(allow mach-lookup (global-name "com.apple.ocspd"))')
+
+        # Keychain change notification via shared memory
         lines.append(
-            '(allow mach-lookup (global-name "com.apple.security.othersigning"))'
-        )
-        lines.append(
-            '(allow mach-lookup (global-name "com.apple.security.credentialstore"))'
+            "(allow ipc-posix-shm-read* ipc-posix-shm-write-create"
+            " ipc-posix-shm-write-data"
+            ' (ipc-posix-name "com.apple.AppleDatabaseChanged"))'
         )
 
 

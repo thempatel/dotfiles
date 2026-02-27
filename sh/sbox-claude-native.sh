@@ -18,10 +18,12 @@ if [[ -n "$GIT_DIR" && -n "$GIT_COMMON_DIR" && "$GIT_DIR" != "$GIT_COMMON_DIR" ]
     WRITE_PATHS+=(-w "$GIT_COMMON_DIR")
 fi
 
-# Claude config directory and state file
+# Claude config directory and state file.
+# -W (prefix match) on the config dir so proper-lockfile's sibling
+# lock file (~/.claude.lock) is also writable.
 CLAUDE_CONFIG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 mkdir -p "$CLAUDE_CONFIG"
-WRITE_PATHS+=(-w "$CLAUDE_CONFIG")
+WRITE_PATHS+=(-W "$CLAUDE_CONFIG")
 WRITE_PATHS+=(-W "$HOME/.claude.json")
 
 # Prototools cache dir

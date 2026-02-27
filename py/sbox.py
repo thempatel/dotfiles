@@ -230,28 +230,11 @@ class SeatbeltPolicy:
     def _add_keychain_rules(self, lines: list[str]) -> None:
         """Add Keychain access rules.
 
-        Service names and paths are derived from Apple's own sandbox profiles:
-        /System/Library/Sandbox/Profiles/application.sb
-        /System/Library/Sandbox/Profiles/com.apple.security.KeychainStasher.sb
-        /System/Library/Sandbox/Profiles/com.apple.securityd.sb
+        Reads already work via (allow default). Writes only need the
+        file-write* permission on the Keychains directory.
         """
         home_str = self._quote(str(self._home))
-
-        # Keychain database files (reads already allowed by default)
         lines.append(f'(allow file-write* (subpath "{home_str}/Library/Keychains"))')
-
-        # Mach services for Security framework / Keychain operations
-        lines.append('(allow mach-lookup (global-name "com.apple.securityd.xpc"))')
-        lines.append('(allow mach-lookup (global-name "com.apple.SecurityServer"))')
-        lines.append('(allow mach-lookup (global-name "com.apple.trustd.agent"))')
-        lines.append('(allow mach-lookup (global-name "com.apple.ocspd"))')
-
-        # Keychain change notification via shared memory
-        lines.append(
-            "(allow ipc-posix-shm-read* ipc-posix-shm-write-create"
-            " ipc-posix-shm-write-data"
-            ' (ipc-posix-name "com.apple.AppleDatabaseChanged"))'
-        )
 
 
 def seatbelt_policy(

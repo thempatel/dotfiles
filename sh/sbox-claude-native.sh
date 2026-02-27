@@ -24,9 +24,7 @@ mkdir -p "$CLAUDE_CONFIG"
 WRITE_PATHS+=(-w "$CLAUDE_CONFIG")
 WRITE_PATHS+=(-w "$HOME/.claude.json")
 
-# Allow writes to common development paths if they exist
-[[ -d ".venv" ]] && WRITE_PATHS+=(-w "$(pwd)/.venv")
-[[ -d "node_modules" ]] && WRITE_PATHS+=(-w "$(pwd)/node_modules")
+# Prototools cache dir
 [[ -d "$HOME/.proto" ]] && WRITE_PATHS+=(-w "$HOME/.proto")
 
 # Go module cache (needed for go get/build/mod download)
@@ -35,26 +33,6 @@ GOMODCACHE="${GOMODCACHE:-${GOPATH:-$HOME/go}/pkg/mod}"
 
 # Rust/Cargo cache
 [[ -d "$HOME/.cargo" ]] && WRITE_PATHS+=(-w "$HOME/.cargo")
-
-# Set up dedicated SSH key for Claude
-CLAUDE_SSH_KEY="$HOME/.ssh/claude_ecdsa"
-if [[ ! -f "$CLAUDE_SSH_KEY" ]]; then
-    echo "Creating dedicated SSH key for Claude at $CLAUDE_SSH_KEY"
-    ssh-keygen -t ecdsa -f "$CLAUDE_SSH_KEY" -N "" -C "claude@$(hostname)"
-    echo ""
-    echo "Add this public key to your Git hosting service:"
-    cat "${CLAUDE_SSH_KEY}.pub"
-    echo ""
-fi
-
-# Deny access to sensitive paths
-DENY_PATHS=(
-    --deny "$HOME/.ssh"
-    --deny "$HOME/.gnupg"
-)
-
-# Export SSH environment variables for Claude to use this key
-export GIT_SSH_COMMAND="ssh -i $CLAUDE_SSH_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
 exec \
   sbox \

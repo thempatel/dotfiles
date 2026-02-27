@@ -22,7 +22,7 @@ fi
 CLAUDE_CONFIG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 mkdir -p "$CLAUDE_CONFIG"
 WRITE_PATHS+=(-w "$CLAUDE_CONFIG")
-WRITE_PATHS+=(-w "$HOME/.claude.json")
+WRITE_PATHS+=(-W "$HOME/.claude.json")
 
 # Prototools cache dir
 [[ -d "$HOME/.proto" ]] && WRITE_PATHS+=(-w "$HOME/.proto")

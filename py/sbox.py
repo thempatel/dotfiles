@@ -46,6 +46,15 @@ class Permission(Enum):
     READ_WRITE = "read-write"  # Convenience for both
 
 
+class Matcher(Enum):
+    """Seatbelt path matcher type."""
+
+    AUTO = "auto"  # subpath for dirs, literal for files
+    PREFIX = (
+        "prefix"  # matches path as a prefix (e.g. foo.json also covers foo.json.lock)
+    )
+
+
 @dataclass
 class PathRule:
     """A rule for a specific path."""
@@ -53,6 +62,7 @@ class PathRule:
     path: Path
     action: Action
     permission: Permission
+    matcher: Matcher = Matcher.AUTO
 
     def is_dir(self) -> bool:
         """Check if path is a directory."""
@@ -71,17 +81,32 @@ class SeatbeltPolicy:
         """Escape a path for Seatbelt policy quoting."""
         return s.replace("\\", "\\\\").replace('"', '\\"')
 
-    def _path_rule(self, action: str, permission: str, path: Path) -> str:
+    def _resolve_matcher(self, path: Path, matcher: Matcher) -> str:
+        """Resolve the seatbelt matcher keyword for a path."""
+        if matcher == Matcher.PREFIX:
+            return "prefix"
+        # AUTO: subpath for dirs, literal for files
+        return "subpath" if path.is_dir() else "literal"
+
+    def _path_rule(
+        self, action: str, permission: str, path: Path, matcher: Matcher = Matcher.AUTO
+    ) -> str:
         """Generate a single path rule."""
         path_str = self._quote(str(path))
-        matcher = "subpath" if path.is_dir() else "literal"
-        return f'({action} {permission} ({matcher} "{path_str}"))'
+        kw = self._resolve_matcher(path, matcher)
+        return f'({action} {permission} ({kw} "{path_str}"))'
 
     def add_rule(
-        self, path: Path, action: Action, permission: Permission
+        self,
+        path: Path,
+        action: Action,
+        permission: Permission,
+        matcher: Matcher = Matcher.AUTO,
     ) -> "SeatbeltPolicy":
         """Add a path rule."""
-        self.rules.append(PathRule(path=path, action=action, permission=permission))
+        self.rules.append(
+            PathRule(path=path, action=action, permission=permission, matcher=matcher)
+        )
         return self
 
     def allow_read(self, path: Path) -> "SeatbeltPolicy":
@@ -91,6 +116,13 @@ class SeatbeltPolicy:
     def allow_write(self, path: Path) -> "SeatbeltPolicy":
         """Allow write access to a path."""
         return self.add_rule(path, Action.ALLOW, Permission.WRITE)
+
+    def allow_write_prefix(self, path: Path) -> "SeatbeltPolicy":
+        """Allow write access to a path and any path sharing its prefix.
+
+        Useful for files that use atomic writes with .lock/.tmp sidecars.
+        """
+        return self.add_rule(path, Action.ALLOW, Permission.WRITE, Matcher.PREFIX)
 
     def allow_read_write(self, path: Path) -> "SeatbeltPolicy":
         """Allow read and write access to a path."""
@@ -124,14 +156,23 @@ class SeatbeltPolicy:
             if rule.permission == Permission.READ_WRITE:
                 # Expand to both read and write
                 lines.append(
-                    self._path_rule(rule.action.value, "file-read*", rule.path)
+                    self._path_rule(
+                        rule.action.value, "file-read*", rule.path, rule.matcher
+                    )
                 )
                 lines.append(
-                    self._path_rule(rule.action.value, "file-write*", rule.path)
+                    self._path_rule(
+                        rule.action.value, "file-write*", rule.path, rule.matcher
+                    )
                 )
             else:
                 lines.append(
-                    self._path_rule(rule.action.value, rule.permission.value, rule.path)
+                    self._path_rule(
+                        rule.action.value,
+                        rule.permission.value,
+                        rule.path,
+                        rule.matcher,
+                    )
                 )
 
         # System paths that are always needed
@@ -217,6 +258,7 @@ def seatbelt_policy(
     *,
     pwd: Optional[Path] = None,
     write_paths: Optional[list[Path]] = None,
+    write_prefix_paths: Optional[list[Path]] = None,
     deny_paths: Optional[list[Path]] = None,
     allow_keychain: bool = False,
 ) -> str:
@@ -226,6 +268,8 @@ def seatbelt_policy(
     Args:
         pwd: Working directory to allow writes (defaults to cwd)
         write_paths: Paths to allow write access
+        write_prefix_paths: Paths to allow write access via prefix matching
+            (also covers .lock, .tmp, and similar sidecars)
         deny_paths: Paths to deny all access
         allow_keychain: If True, allow Keychain access
 
@@ -243,6 +287,10 @@ def seatbelt_policy(
     # Add write paths
     for p in write_paths or []:
         policy.allow_write(p)
+
+    # Add write prefix paths
+    for p in write_prefix_paths or []:
+        policy.allow_write_prefix(p)
 
     # Add deny paths
     for p in deny_paths or []:
@@ -311,6 +359,14 @@ def main(
         Optional[list[str]],
         typer.Option("-w", "--write", help="Allow write access to PATH (repeatable)"),
     ] = None,
+    write_prefix: Annotated[
+        Optional[list[str]],
+        typer.Option(
+            "-W",
+            "--write-prefix",
+            help="Allow write access to PATH and any path sharing its prefix (repeatable)",
+        ),
+    ] = None,
     deny: Annotated[
         Optional[list[str]],
         typer.Option("--deny", help="Deny all access to PATH (repeatable)"),
@@ -349,16 +405,19 @@ def main(
     # Resolve paths
     pwd = Path.cwd().resolve()
     write_paths = [abs_path(p) for p in (write or [])]
+    write_prefix_paths = [abs_path(p) for p in (write_prefix or [])]
     deny_paths_resolved = [abs_path(p) for p in (deny or [])]
 
     # Ensure files exist for Seatbelt
     ensure_paths_exist(write_paths)
+    ensure_paths_exist(write_prefix_paths)
     ensure_paths_exist(deny_paths_resolved)
 
     # Generate policy
     policy = seatbelt_policy(
         pwd=pwd,
         write_paths=write_paths,
+        write_prefix_paths=write_prefix_paths,
         deny_paths=deny_paths_resolved,
         allow_keychain=allow_keychain,
     )

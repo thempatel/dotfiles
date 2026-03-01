@@ -36,6 +36,9 @@ GOMODCACHE="${GOMODCACHE:-${GOPATH:-$HOME/go}/pkg/mod}"
 # Rust/Cargo cache
 [[ -d "$HOME/.cargo" ]] && WRITE_PATHS+=(-w "$HOME/.cargo")
 
+# Generic cache
+[[ -d $HOME/.cache ]] && WRITE_PATHS+=(-w "$HOME/.cache")
+
 exec \
   sbox \
   "${WRITE_PATHS[@]}" \

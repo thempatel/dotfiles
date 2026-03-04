@@ -75,6 +75,9 @@ def main(
         None, "-o", "--output", help="Output HAR file path"
     ),
     headless: bool = typer.Option(False, help="Run in headless mode"),
+    devtools: bool = typer.Option(
+        False, "-d", "--devtools", help="Open browser with DevTools panel"
+    ),
     url_match: Optional[list[str]] = typer.Option(
         None,
         "--url-match",
@@ -91,7 +94,8 @@ def main(
     har_path = output if output else Path.cwd() / f"{_sanitize_filename(url)}.har"
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless)
+        args = ["--auto-open-devtools-for-tabs"] if devtools else []
+        browser = p.chromium.launch(headless=headless, args=args)
         context = browser.new_context(record_har_path=str(har_path))
         page = context.new_page()
         page.goto(url)

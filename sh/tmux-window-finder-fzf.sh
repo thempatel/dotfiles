@@ -17,7 +17,7 @@ OUTPUT=$(cat /tmp/tmux-wf-list | fzf-tmux -p \
   --expect=ctrl-d \
   --header 'ctrl-d: kill' \
   --bind "load:pos($POS)" \
-  --bind "ctrl-c:clear-query")
+  --bind "esc:clear-query")
 
 [ -z "$OUTPUT" ] && exit 0
 

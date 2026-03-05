@@ -14,8 +14,12 @@ Each window is displayed as:
   {session_name} {process_label}
 
 Process labels:
-  - "claude" if a claude descendant is found in the pane's process tree
-  - the pane_current_command otherwise (e.g. "zsh", "vim", "python3")
+  - "claude: {topic}" if a claude descendant is found, using the pane title
+    as the topic (e.g. "claude: Frame-Based Bot Detection")
+  - "claude" if a claude descendant is found but no meaningful pane title
+  - for shells (zsh/bash/fish): the pane title set by precmd (git branch or
+    dir name), falling back to the command name
+  - the pane_current_command otherwise (e.g. "vim", "python3")
 
 When multiple windows in a session share the same label, they are suffixed:
   claude-1, claude-2, zsh-1, zsh-2, etc.
@@ -62,11 +66,54 @@ def has_claude_descendant(
     return False
 
 
+def _extract_claude_topic(pane_title: str) -> str | None:
+    """Extract a meaningful topic from the pane title, or None if generic."""
+    if not pane_title:
+        return None
+    # Claude Code sets pane title to things like "✳ Frame-Based Bot Detection"
+    # or "⠐ tmux-window-finder caching" (with spinner chars).
+    # Strip leading unicode spinner/status chars and whitespace.
+    stripped = pane_title.lstrip()
+    if stripped:
+        # Remove leading non-ASCII status character if present
+        first = stripped[0]
+        if not first.isascii():
+            stripped = stripped[1:].lstrip()
+    # Ignore generic titles like "Claude Code" or hostname-like strings
+    if not stripped or stripped == "Claude Code" or "." in stripped:
+        return None
+    return stripped
+
+
+SHELLS = {"zsh", "bash", "fish"}
+
+
+def _extract_shell_title(pane_title: str) -> str | None:
+    """Extract a meaningful title set by precmd (branch name or dir name)."""
+    if not pane_title:
+        return None
+    stripped = pane_title.strip()
+    # Ignore hostname-like titles (contain dots like "milan-host.local")
+    if not stripped or "." in stripped:
+        return None
+    return stripped
+
+
 def get_process_label(
-    cmd: str, pane_pid: str, children_map: dict[str, list[tuple[str, str]]]
+    cmd: str,
+    pane_pid: str,
+    pane_title: str,
+    children_map: dict[str, list[tuple[str, str]]],
 ) -> str:
     if has_claude_descendant(pane_pid, children_map):
+        topic = _extract_claude_topic(pane_title)
+        if topic:
+            return f"claude: {topic}"
         return "claude"
+    if cmd in SHELLS:
+        title = _extract_shell_title(pane_title)
+        if title:
+            return title
     return cmd
 
 
@@ -80,7 +127,7 @@ def cmd_update() -> None:
             "list-windows",
             "-a",
             "-F",
-            "#{session_name}\t#{window_index}\t#{pane_current_command}\t#{pane_pid}",
+            "#{session_name}\t#{window_index}\t#{pane_current_command}\t#{pane_pid}\t#{pane_title}",
         )
     except subprocess.CalledProcessError:
         return
@@ -91,8 +138,8 @@ def cmd_update() -> None:
 
     lines: list[str] = []
     for line in raw.splitlines():
-        session, idx, cmd, pane_pid = line.split("\t", 3)
-        label = get_process_label(cmd, pane_pid, children_map)
+        session, idx, cmd, pane_pid, pane_title = line.split("\t", 4)
+        label = get_process_label(cmd, pane_pid, pane_title, children_map)
         lines.append(f"{session}\t{idx}\t{label}")
 
     tmp_path = CACHE_PATH + ".tmp"
@@ -175,7 +222,10 @@ def cmd_lookup() -> None:
 def main() -> None:
     cmd = sys.argv[1] if len(sys.argv) > 1 else "lookup"
     if cmd == "update":
-        cmd_update()
+        try:
+            cmd_update()
+        except Exception:
+            pass  # hooks must never return non-zero
     elif cmd == "lookup":
         cmd_lookup()
     else:

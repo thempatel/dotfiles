@@ -10,6 +10,20 @@ function git_current_branch() {
   echo ${ref#refs/heads/}
 }
 
+# Set terminal title to git branch for tmux window-finder cache updates
+_set_title_precmd() {
+  local title
+  if git rev-parse --is-inside-work-tree &>/dev/null; then
+    local branch
+    branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+    title=${branch:-detached}
+  else
+    title=${PWD##*/}
+  fi
+  print -Pn "\e]2;${title}\a"
+}
+precmd_functions+=(_set_title_precmd)
+
 # https://gist.github.com/welldan97/5127861
 
 pb-kill-whole-line () {

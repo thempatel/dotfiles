@@ -185,8 +185,14 @@ def cmd_lookup() -> None:
     active_session = tmux("display-message", "-p", "#{session_name}")
     active_window = tmux("display-message", "-p", "#{window_index}")
 
-    # Sort alphabetically by (session, label)
-    entries.sort(key=lambda e: (e[0].lower(), e[2].lower()))
+    # Sort by session, then claude windows first within each session
+    entries.sort(
+        key=lambda e: (
+            e[0].lower(),
+            0 if e[2].startswith("claude") else 1,
+            e[2].lower(),
+        )
+    )
 
     # Count labels per session to determine if suffixes are needed
     label_counts: dict[tuple[str, str], int] = {}

@@ -5,18 +5,19 @@
 
 tmux-window-finder lookup >/tmp/tmux-wf-list 2>/tmp/tmux-wf-pos || exit 0
 
-TOTAL=$(wc -l < /tmp/tmux-wf-list)
-POS=$(( TOTAL - $(cat /tmp/tmux-wf-pos) + 1 ))
+POS=$(cat /tmp/tmux-wf-pos)
 
 OUTPUT=$(cat /tmp/tmux-wf-list | fzf-tmux -p \
   --with-nth=1 \
   --delimiter="	" \
   --no-sort \
-  --tac \
+  --track \
+  --layout=reverse \
   --multi \
   --expect=ctrl-d \
   --header 'ctrl-d: kill' \
-  --bind "load:pos($POS)")
+  --bind "load:pos($POS)" \
+  --bind "ctrl-c:clear-query")
 
 [ -z "$OUTPUT" ] && exit 0
 

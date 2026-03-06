@@ -37,6 +37,9 @@ GOMODCACHE="${GOMODCACHE:-${GOPATH:-$HOME/go}/pkg/mod}"
 # Generic cache
 [[ -d $HOME/.cache ]] && WRITE_PATHS+=(-w "$HOME/.cache")
 
+# pnpm global store
+[[ -d "$HOME/Library/pnpm" ]] && WRITE_PATHS+=(-w "$HOME/Library/pnpm")
+
 # Config directories for agents that may be invoked (directly or as subprocesses).
 # Claude can spawn codex, so both need write access regardless of which agent is primary.
 CLAUDE_CONFIG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"

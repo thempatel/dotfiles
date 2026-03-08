@@ -2,11 +2,14 @@ gui:
   # If true, do not show a warning when amending a commit.
   skipAmendWarning: true
   skipStashWarning: false
+  scrollHeight: 25
+
 git:
   branchPrefix: "milan/"
   parseEmoji: true
   pagers:
-    - pager: delta --dark --paging=never --line-numbers --hyperlinks --hyperlinks-file-link-format="lazygit-edit://{path}:{line}"
+    - pager: delta --dark --paging=never --line-numbers
+    - pager: delta --dark --paging=never --line-numbers --side-by-side
 customCommands:
   - key: "G"
     command: "gh pr view -w {{.SelectedLocalBranch.Name}}"

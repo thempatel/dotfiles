@@ -23,7 +23,12 @@ if ! which brew > /dev/null; then
   eval "$output"
 fi
 
+if ! command -v aqua &> /dev/null; then
+  curl -sSfL https://raw.githubusercontent.com/aquaproj/aqua-installer/v4.0.2/aqua-installer | bash
+fi
+
 brew bundle --file brew/Brewfile
+aqua i
 deno install
 pre-commit install
 

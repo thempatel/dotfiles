@@ -18,3 +18,7 @@ fi
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+export AQUA_GLOBAL_CONFIG=$DOTFILES_HOME/aqua.yaml
+export AQUA_ROOT_DIR=$HOME/.local/share/aquaproj-aqua
+path+=("$AQUA_ROOT_DIR/bin")

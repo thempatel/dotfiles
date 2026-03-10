@@ -1,0 +1,6 @@
+registries:
+  - type: standard
+    ref: v4.155.1 # renovate: depName=aquaproj/aqua-registry
+
+packages:
+  - name: denoland/deno@v2.6.0

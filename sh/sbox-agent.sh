@@ -3,10 +3,20 @@
 # Run a coding agent in a macOS sandbox using sbox (sandbox-exec wrapper).
 # This uses the native macOS Seatbelt sandbox instead of containers.
 #
-# Usage: sbox-agent [agent] [agent-args...]
+# Usage: sbox-agent [-d deny_path]... [agent] [agent-args...]
+#   -d path: deny read/write access to path (repeatable)
 #   agent: claude (default), codex, etc.
 
 set -e
+
+DENY_PATHS=()
+while getopts "d:" opt; do
+  case "$opt" in
+    d) DENY_PATHS+=(-d "$OPTARG") ;;
+    *) echo "Usage: sbox-agent [-d deny_path]... [agent] [agent-args...]" >&2; exit 1 ;;
+  esac
+done
+shift $((OPTIND - 1))
 
 AGENT="${1:-claude}"
 shift 2>/dev/null || true

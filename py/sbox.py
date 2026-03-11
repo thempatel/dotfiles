@@ -352,7 +352,7 @@ def main(
     ] = None,
     deny: Annotated[
         Optional[list[str]],
-        typer.Option("--deny", help="Deny all access to PATH (repeatable)"),
+        typer.Option("-d", "--deny", help="Deny all access to PATH (repeatable)"),
     ] = None,
     allow_keychain: Annotated[
         bool,

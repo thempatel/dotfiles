@@ -3,9 +3,9 @@
 set -e
 
 THIS_DIR="$(realpath $(dirname "$0"))"
-PROJECT_HOME="${PROJECT_HOME:-"$THIS_DIR"}"
+export DOTFILES_HOME="$THIS_DIR"
 
-cd "$PROJECT_HOME"
+cd "$DOTFILES_HOME"
 
 if ! which brew > /dev/null; then
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -24,7 +24,10 @@ if ! which brew > /dev/null; then
 fi
 
 if ! command -v aqua &> /dev/null; then
+  export AQUA_ROOT_DIR=$HOME/.local/share/aquaproj-aqua
+  export AQUA_GLOBAL_CONFIG=$DOTFILES_HOME/aqua.yaml
   curl -sSfL https://raw.githubusercontent.com/aquaproj/aqua-installer/v4.0.2/aqua-installer | bash
+  PATH="$AQUA_ROOT_DIR:$PATH"
 fi
 
 brew bundle --file brew/Brewfile
@@ -37,5 +40,5 @@ for setup in setup/*; do
   $setup
 done
 
-export DOTFILES_HOME=$PROJECT_HOME
+
 $DOTFILES_HOME/bin/stow!

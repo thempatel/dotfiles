@@ -2,3 +2,8 @@
 name = "Lazygit"
 path = "~/src/dotfiles/"
 startup_command = "lg"
+
+[[session]]
+name = "Task List"
+path = "~/"
+startup_command = "tsk"

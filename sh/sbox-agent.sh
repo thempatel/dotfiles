@@ -34,21 +34,18 @@ if [[ -n "$GIT_DIR" && -n "$GIT_COMMON_DIR" && "$GIT_DIR" != "$GIT_COMMON_DIR" ]
     WRITE_PATHS+=(-w "$GIT_COMMON_DIR")
 fi
 
-# Prototools cache dir
-[[ -d "$HOME/.proto" ]] && WRITE_PATHS+=(-w "$HOME/.proto")
-
-# Go module cache (needed for go get/build/mod download)
-GOMODCACHE="${GOMODCACHE:-${GOPATH:-$HOME/go}/pkg/mod}"
-[[ -d "$GOMODCACHE" ]] && WRITE_PATHS+=(-w "$GOMODCACHE")
-
-# Rust/Cargo cache
-[[ -d "$HOME/.cargo" ]] && WRITE_PATHS+=(-w "$HOME/.cargo")
-
-# Generic cache
-[[ -d $HOME/.cache ]] && WRITE_PATHS+=(-w "$HOME/.cache")
-
-# pnpm global store
-[[ -d "$HOME/Library/pnpm" ]] && WRITE_PATHS+=(-w "$HOME/Library/pnpm")
+# Optional writable paths (tool caches, package stores, etc.)
+OPTIONAL_WRITE_PATHS=(
+  "$HOME/.proto"                                    # Prototools
+  "${GOMODCACHE:-${GOPATH:-$HOME/go}/pkg/mod}"      # Go module cache
+  "$HOME/.cargo"                                    # Rust/Cargo
+  "$HOME/.cache"                                    # Generic cache
+  "$HOME/Library/pnpm"                              # pnpm global store
+  "$HOME/.local/share"                              # XDG data
+)
+for p in "${OPTIONAL_WRITE_PATHS[@]}"; do
+  [[ -d "$p" ]] && WRITE_PATHS+=(-w "$p")
+done
 
 # Config directories for agents that may be invoked (directly or as subprocesses).
 # Claude can spawn codex, so both need write access regardless of which agent is primary.

@@ -33,4 +33,4 @@ for setup in setup/*; do
 done
 
 
-$DOTFILES_HOME/bin/stow!
+$DOTFILES_HOME/bin/stow! -yc ./stow.yaml

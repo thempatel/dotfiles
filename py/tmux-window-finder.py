@@ -14,9 +14,9 @@ Each window is displayed as:
   {session_name} {process_label}
 
 Process labels:
-  - "claude: {topic}" if a claude descendant is found, using the pane title
-    as the topic (e.g. "claude: Frame-Based Bot Detection")
-  - "claude" if a claude descendant is found but no meaningful pane title
+  - "{tool}: {topic}" if an AI tool descendant (claude, codex) is found,
+    using the pane title as the topic (e.g. "claude: Frame-Based Bot Detection")
+  - "{tool}" if an AI tool descendant is found but no meaningful pane title
   - for shells (zsh/bash/fish): the pane title set by precmd (git branch or
     dir name), falling back to the command name
   - the pane_current_command otherwise (e.g. "vim", "python3")
@@ -55,15 +55,20 @@ def _build_children_map() -> dict[str, list[tuple[str, str]]]:
     return children
 
 
-def has_claude_descendant(
+AI_TOOLS = {"claude", "codex"}
+
+
+def find_ai_tool(
     pid: str, children_map: dict[str, list[tuple[str, str]]]
-) -> bool:
+) -> str | None:
+    """Return the name of the AI tool descendant (e.g. 'claude', 'codex'), or None."""
     for child_pid, cmd_name in children_map.get(pid, []):
-        if cmd_name == "claude":
-            return True
-        if has_claude_descendant(child_pid, children_map):
-            return True
-    return False
+        if cmd_name in AI_TOOLS:
+            return cmd_name
+        found = find_ai_tool(child_pid, children_map)
+        if found:
+            return found
+    return None
 
 
 def _extract_claude_topic(pane_title: str) -> str | None:
@@ -105,11 +110,12 @@ def get_process_label(
     pane_title: str,
     children_map: dict[str, list[tuple[str, str]]],
 ) -> str:
-    if has_claude_descendant(pane_pid, children_map):
+    ai_tool = find_ai_tool(pane_pid, children_map)
+    if ai_tool:
         topic = _extract_claude_topic(pane_title)
         if topic:
-            return f"claude: {topic}"
-        return "claude"
+            return f"{ai_tool}: {topic}"
+        return ai_tool
     if cmd in SHELLS:
         title = _extract_shell_title(pane_title)
         if title:
@@ -189,7 +195,7 @@ def cmd_lookup() -> None:
     entries.sort(
         key=lambda e: (
             e[0].lower(),
-            0 if e[2].startswith("claude") else 1,
+            0 if any(e[2].startswith(t) for t in AI_TOOLS) else 1,
             e[2].lower(),
         )
     )

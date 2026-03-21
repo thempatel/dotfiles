@@ -23,3 +23,5 @@ targets:
     target: "~/.config"
   - source: "ssh"
     target: "~/.ssh"
+  - source: "tsk"
+    target: "~/.config/tsk"

@@ -1,0 +1,3 @@
+[storage]
+type = 'git'
+remote = 'git@github.com:thempatel/taskdata.git'

@@ -1,3 +1,11 @@
+if command -v direnv &> /dev/null; then
+  eval "$(direnv hook zsh)"
+fi
+
+if command -v zoxide &> /dev/null; then
+  eval "$(zoxide init zsh)"
+fi
+
 if command -v starship &> /dev/null; then
   eval "$(starship init zsh)"
 fi
@@ -8,14 +16,4 @@ fi
 
 if command -v task &> /dev/null; then
   eval "$(task --completion zsh)"
-fi
-
-FZF_GIT="$DOTFILES_HOME/vendor/fzf-git.sh"
-if [[ -f $FZF_GIT ]]; then
-  source $FZF_GIT
-fi
-
-Z_HOOK="$(brew --prefix)/etc/profile.d/z.sh"
-if [[ -f $Z_HOOK ]]; then
-  source $Z_HOOK
 fi

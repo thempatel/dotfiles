@@ -1,19 +1,7 @@
-autoload -U compinit; compinit
-typeset -U PATH path
-
-export SHELL_SESSIONS_DISABLE=1
-export HISTSIZE=50000
-export SAVEHIST=10000
-ZSH_CACHE_DIR="$HOME/.zcache"
-
 if ! command -v brew &> /dev/null && [[ -d /opt/homebrew ]]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
-if command -v direnv &> /dev/null; then
-  eval "$(direnv hook zsh)"
-fi
-
-if command -v zoxide &> /dev/null; then
-  eval "$(zoxide init zsh)"
+if command -v mise &> /dev/null; then
+  eval "$(mise activate zsh)"
 fi

@@ -24,6 +24,7 @@ if ! which brew > /dev/null; then
 fi
 
 brew bundle --file brew/Brewfile
+mise i
 deno install
 pre-commit install
 

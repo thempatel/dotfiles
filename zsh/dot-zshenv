@@ -1,3 +1,7 @@
+# Snapshot env before dotfiles touch anything, used by reload!
+typeset -aU _reload_env_before=( ${(k)parameters[(R)*export*]} )
+_reload_path_before="$PATH"
+
 autoload -U compinit; compinit
 typeset -U PATH path
 

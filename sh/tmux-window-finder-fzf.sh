@@ -8,32 +8,21 @@ tmux-window-finder lookup >/tmp/tmux-wf-list 2>/tmp/tmux-wf-pos || exit 0
 
 POS=$(cat /tmp/tmux-wf-pos)
 
-OUTPUT=$(cat /tmp/tmux-wf-list | fzf-tmux -p \
+TARGET=$(cat /tmp/tmux-wf-list | fzf-tmux -p \
   --with-nth=1 \
   --delimiter="	" \
   --no-sort \
   --track \
   --layout=reverse \
   --multi \
-  --expect=ctrl-d \
   --header 'ctrl-d: kill · ctrl-r: refresh' \
   --bind "load:pos($POS)" \
   --bind 'esc:transform:[[ -z {q} ]] && echo abort || echo clear-query' \
-  --bind "ctrl-r:reload(tmux-window-finder update && tmux-window-finder lookup 2>/dev/null)")
+  --bind "ctrl-r:reload(tmux-window-finder update && tmux-window-finder lookup 2>/dev/null)" \
+  --bind "ctrl-d:execute-silent(cat {+f} | cut -f2 | xargs -I{} tmux kill-window -t {})+reload(tmux-window-finder update && tmux-window-finder lookup 2>/dev/null)+clear-multi" \
+  --bind 'zero:abort' \
+  | cut -f2)
 
-[ -z "$OUTPUT" ] && exit 0
-
-KEY=$(echo "$OUTPUT" | head -1)
-TARGETS=$(echo "$OUTPUT" | tail -n +2 | cut -f2)
-
-case "$KEY" in
-  ctrl-d)
-    echo "$TARGETS" | while read -r t; do
-      tmux kill-window -t "$t"
-    done
-    ;;
-  *)
-    echo "$TARGETS" | head -1 | xargs -I{} tmux switch-client -t {}
-    ;;
-esac
+[ -z "$TARGET" ] && exit 0
+echo "$TARGET" | head -1 | xargs -I{} tmux switch-client -t {}
 exit 0

@@ -3,17 +3,21 @@
 # Run a coding agent in a macOS sandbox using sbox (sandbox-exec wrapper).
 # This uses the native macOS Seatbelt sandbox instead of containers.
 #
-# Usage: sbox-agent [-d deny_path]... [agent] [agent-args...]
+# Usage: sbox-agent [-w write_path] [-W write_prefix_path] [-d deny_path]... [agent] [agent-args...]
+#   -w path: allow write access to path (repeatable)
+#   -W path: allow write access to path and any path sharing its prefix (repeatable)
 #   -d path: deny read/write access to path (repeatable)
 #   agent: claude (default), codex, etc.
 
 set -e
 
-DENY_PATHS=()
-while getopts "d:" opt; do
+EXTRA_ARGS=()
+while getopts "w:W:d:" opt; do
   case "$opt" in
-    d) DENY_PATHS+=(-d "$OPTARG") ;;
-    *) echo "Usage: sbox-agent [-d deny_path]... [agent] [agent-args...]" >&2; exit 1 ;;
+    w) EXTRA_ARGS+=(-w "$OPTARG") ;;
+    W) EXTRA_ARGS+=(-W "$OPTARG") ;;
+    d) EXTRA_ARGS+=(-d "$OPTARG") ;;
+    *) echo "Usage: sbox-agent [-w write_path] [-W write_prefix_path] [-d deny_path]... [agent] [agent-args...]" >&2; exit 1 ;;
   esac
 done
 shift $((OPTIND - 1))
@@ -76,7 +80,7 @@ export IS_SBOX=1
 exec \
   sbox \
   "${WRITE_PATHS[@]}" \
-  "${DENY_PATHS[@]}" \
+  "${EXTRA_ARGS[@]}" \
   --allow-keychain \
   -- \
   "$AGENT" "${AGENT_ARGS[@]}" "$@"

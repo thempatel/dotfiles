@@ -2,13 +2,9 @@
 typeset -aU _reload_env_before=( ${(k)parameters[(R)*export*]} )
 _reload_path_before="$PATH"
 
-autoload -U compinit; compinit
 typeset -U PATH path
 
 export SHELL_SESSIONS_DISABLE=1
-export HISTSIZE=50000
-export SAVEHIST=10000
-export ZSH_CACHE_DIR="$HOME/.zcache"
 
 SCRIPT_PATH="${(%):-%x}"
 export DOTFILES_HOME="${SCRIPT_PATH:A:h:h}"

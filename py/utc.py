@@ -175,13 +175,13 @@ def main(
     input_parts: list[str] = typer.Argument(
         help="Fuzzy time input, e.g. '17:12', '17:12 cet', '03/23 5:12 pm'"
     ),
-    fmt: str = typer.Option(
-        None,
-        "-f",
-        help="Output format: 's' for epoch seconds, 'ms' for epoch milliseconds. Default: ISO 8601.",
+    seconds: bool = typer.Option(False, "-s", help="Output as epoch seconds."),
+    millis: bool = typer.Option(False, "-m", help="Output as epoch milliseconds."),
+    local: bool = typer.Option(
+        False, "-l", help="Treat input as UTC and print in local time."
     ),
 ) -> None:
-    """Convert a fuzzy time input to UTC.
+    """Convert a fuzzy time input to UTC (or UTC to local with -l).
 
     Examples:
         utc 17:12              -> that time today in local tz -> UTC
@@ -189,19 +189,38 @@ def main(
         utc 03/23 17:12        -> March 23 this year, 17:12 local -> UTC
         utc 03/23 5:12 pm      -> March 23 this year, 5:12 PM local -> UTC
         utc 03/23 5:12 pm pst  -> March 23 this year, 5:12 PM PST -> UTC
-        utc -f s 17:12         -> epoch seconds
-        utc -f ms 17:12        -> epoch milliseconds
+        utc -s 17:12           -> epoch seconds
+        utc -m 17:12           -> epoch milliseconds
+        utc -l 17:12           -> 17:12 UTC -> local time
     """
-    dt, source_tz = parse_input(input_parts)
-    aware = dt.replace(tzinfo=source_tz)
-    utc_dt = aware.astimezone(timezone.utc)
+    if seconds and millis:
+        typer.echo("Cannot use both -s and -m.", err=True)
+        raise typer.Exit(1)
 
-    if fmt == "s":
-        output = str(int(utc_dt.timestamp()))
-    elif fmt == "ms":
-        output = str(int(utc_dt.timestamp() * 1000))
+    dt, source_tz = parse_input(input_parts)
+
+    if local:
+        # Treat input as UTC, convert to local
+        aware = dt.replace(tzinfo=timezone.utc)
+        local_aware = datetime.now(timezone.utc).astimezone()
+        try:
+            local_tz = ZoneInfo(local_aware.tzinfo.key)
+        except (AttributeError, KeyError):
+            local_tz = local_aware.tzinfo
+        result_dt = aware.astimezone(local_tz)
     else:
-        output = utc_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+        # Treat input as source_tz, convert to UTC
+        aware = dt.replace(tzinfo=source_tz)
+        result_dt = aware.astimezone(timezone.utc)
+
+    if seconds:
+        output = str(int(result_dt.timestamp()))
+    elif millis:
+        output = str(int(result_dt.timestamp() * 1000))
+    elif local:
+        output = result_dt.strftime("%Y-%m-%dT%H:%M:%S%z")
+    else:
+        output = result_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     end = "" if not sys.stdout.isatty() else "\n"
     sys.stdout.write(output + end)

@@ -43,6 +43,7 @@ OPTIONAL_WRITE_PATHS=(
   "$HOME/.proto"                                    # Prototools
   "${GOMODCACHE:-${GOPATH:-$HOME/go}/pkg/mod}"      # Go module cache
   "$HOME/.cargo"                                    # Rust/Cargo
+  "$HOME/.rustup"                                   # Rust/Cargo
   "$HOME/.cache"                                    # Generic cache
   "$HOME/Library/pnpm"                              # pnpm global store
   "$HOME/.local/share"                              # XDG data

@@ -47,6 +47,7 @@ OPTIONAL_WRITE_PATHS=(
   "$HOME/Library/pnpm"                              # pnpm global store
   "$HOME/.local/share"                              # XDG data
   "$HOME/.dbt"                                      # DBT Data
+  "$HOME/go"                                        # Golang
 )
 for p in "${OPTIONAL_WRITE_PATHS[@]}"; do
   [[ -d "$p" ]] && WRITE_PATHS+=(-w "$p")

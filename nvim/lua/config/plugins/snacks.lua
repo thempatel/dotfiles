@@ -40,18 +40,6 @@ return {
           action = "<CMD>qa<CR>",
         },
         { section = "startup", align = "center", padding = { 10, 4 } },
-        {
-          section = "terminal",
-          cmd = "artprint --random -t milan --tc 5 --style 1",
-          row = nil,
-          align = "center",
-          height = 30,
-          padding = 10,
-          width = 60,
-          random = 200,
-          gap = 2,
-          pane = 2,
-        },
       },
     },
     image = {

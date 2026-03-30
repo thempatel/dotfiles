@@ -46,7 +46,7 @@ OPTIONAL_WRITE_PATHS=(
   "$HOME/.rustup"                                   # Rust/Cargo
   "$HOME/.cache"                                    # Generic cache
   "$HOME/Library/pnpm"                              # pnpm global store
-  "$HOME/.local/share"                              # XDG data
+  "$HOME/.local"                                    # XDG data
   "$HOME/.dbt"                                      # DBT Data
   "$HOME/go"                                        # Golang
 )

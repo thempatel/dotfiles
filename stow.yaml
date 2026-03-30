@@ -27,3 +27,5 @@ targets:
     target: "~/.config/tsk"
   - source: "ghostty"
     target: "~/.config/ghostty"
+  - source: "nvim"
+    target: "~/.config/nvim"

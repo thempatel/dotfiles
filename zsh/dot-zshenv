@@ -10,5 +10,6 @@ SCRIPT_PATH="${(%):-%x}"
 export DOTFILES_HOME="${SCRIPT_PATH:A:h:h}"
 export MISE_GLOBAL_CONFIG_FILE="$DOTFILES_HOME/mise.toml"
 export MISE_TRUSTED_CONFIG_PATHS="$MISE_GLOBAL_CONFIG_FILE"
+GHOSTTY_PATH=/Applications/Ghostty.app/Contents/MacOS
 
-path+=("$DOTFILES_HOME/bin" "$HOME/.local/bin")
+path+=("$DOTFILES_HOME/bin" "$HOME/.local/bin" "$GHOSTTY_PATH")

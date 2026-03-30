@@ -31,3 +31,4 @@ brew "wget"
 brew "xz"
 
 cask "maccy"
+cask "ghostty"

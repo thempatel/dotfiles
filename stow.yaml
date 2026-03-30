@@ -25,3 +25,5 @@ targets:
     target: "~/.ssh"
   - source: "tsk"
     target: "~/.config/tsk"
+  - source: "ghostty"
+    target: "~/.config/ghostty"

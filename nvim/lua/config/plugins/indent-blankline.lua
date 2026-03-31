@@ -10,16 +10,6 @@ M.config = function()
     return
   end
 
-  local theme = require("config.plugins.theme")
-  local colors = theme.colors()
-  if not colors then
-    return
-  end
-
-  local util = require("tokyonight.util")
-  local darker_bg = util.darken(colors.bg_popup, 2.5)
-  vim.cmd("highlight IndentLineDarker guifg=" .. darker_bg)
-
   indent_blankline.setup({
     enabled = true,
     debounce = 500,
@@ -35,13 +25,7 @@ M.config = function()
         "NvimTree",
         "Trouble",
         "alpha",
-        "packer",
         "man",
-        "TelescopePrompt",
-        "NvimTree",
-        "Trouble",
-        "DiffviewFiles",
-        "DiffviewFileHistory",
         "Outline",
         "lspinfo",
         "fugitive",
@@ -51,7 +35,6 @@ M.config = function()
     indent = {
       char = "│",
       tab_char = "│",
-      highlight = { "IndentLineDarker" },
     },
     scope = {
       show_start = false,

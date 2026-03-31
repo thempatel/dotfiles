@@ -51,10 +51,6 @@ function M.hasPlugin(plugin)
 end
 
 function M.formatexpr()
-  if M.hasPlugin("conform") then
-    return require("conform").formatexpr()
-  end
-
   return vim.lsp.formatexpr({ timeout_ms = 3000 })
 end
 return M

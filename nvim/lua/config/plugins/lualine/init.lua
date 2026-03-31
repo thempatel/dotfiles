@@ -2,7 +2,6 @@ local M = {
   "nvim-lualine/lualine.nvim",
   dependencies = {
     "folke/noice.nvim",
-    "xiyaowong/transparent.nvim",
   },
   event = "VeryLazy",
 }
@@ -10,21 +9,14 @@ local M = {
 M.config = function()
   local components = require("config.plugins.lualine.components")
 
-  local theme = require("config.plugins.theme")
-  local colors = theme.colors()
-  if not colors then
-    return
-  end
-
   require("lualine").setup({
     options = {
-      theme = require("config.plugins.transparent").theme(),
+      theme = "auto",
       globalstatus = true,
       component_separators = "",
       section_separators = "",
       disabled_filetypes = { "dashboard", "Outline", "alpha" },
       icons_enabled = true,
-      -- ignore_focus = { "NvimTree" },
     },
     tabline = {},
     extensions = {},
@@ -36,18 +28,6 @@ M.config = function()
           cond = function()
             return #vim.api.nvim_list_tabpages() > 1
           end,
-          tabs_color = {
-            active = { fg = colors.fg_dark, bg = "NONE" },
-            inactive = { fg = colors.fg_dark, bg = "NONE" },
-          },
-          fmt = function(_, context)
-            local curr = vim.fn.tabpagenr()
-            if curr == context.tabnr then
-              return ""
-            end
-
-            return ""
-          end,
         },
       },
       lualine_b = {
@@ -57,21 +37,17 @@ M.config = function()
         {
           require("noice").api.status.search.get,
           cond = require("noice").api.status.search.has,
-          color = { fg = "#f0a275", bg = "NONE" },
+          color = { fg = "#f0a275" },
         },
-        -- components.breadcrumbs,
       },
       lualine_x = {
-        { require("recorder").recordingStatus },
         components.treesitter,
         components.lsp,
-        -- components.filetype,
       },
       lualine_y = {},
       lualine_z = {
         components.location,
         components.scrollbar,
-        -- nvim_tree_shift,
       },
     },
   })

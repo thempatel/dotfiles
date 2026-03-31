@@ -9,12 +9,12 @@ M.config = function()
   wk.setup({
     preset = "helix",
     icons = {
-      breadcrumb = "»", -- symbol used in the command line area that shows your active key combo
-      separator = "→", -- symbol used between a key and it's label
-      group = "", -- symbol prepended to a group
+      breadcrumb = "»",
+      separator = "→",
+      group = "",
     },
     win = {
-      padding = { 1, 1 }, -- extra window padding [top/bottom, right/left]
+      padding = { 1, 1 },
     },
     triggers = {
       { "<auto>", mode = "nistc" },
@@ -40,10 +40,10 @@ M.config = function()
   local opts = {
     mode = "n",
     prefix = "<leader>",
-    buffer = nil, -- Global mappings. Specify a buffer number for buffer local mappings
-    silent = true, -- use `silent` when creating keymaps
-    noremap = true, -- use `noremap` when creating keymaps
-    nowait = false, -- use `nowait` when creating keymaps
+    buffer = nil,
+    silent = true,
+    noremap = true,
+    nowait = false,
   }
   wk.add({
     { "<leader>*", hidden = true, nowait = false, remap = false },

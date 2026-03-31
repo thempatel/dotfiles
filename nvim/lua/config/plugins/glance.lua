@@ -63,19 +63,5 @@ return {
         end,
       },
     })
-
-    local colors = require("tokyonight.colors").setup()
-    local util = require("tokyonight.util")
-    local darker_bg = util.darken(colors.bg_dark, 2.5)
-    vim.api.nvim_set_hl(0, "GlanceWinBarTitle", { fg = colors.blue, bg = darker_bg, bold = true })
-    vim.api.nvim_set_hl(0, "GlanceListNormal", { bg = darker_bg })
-    vim.api.nvim_set_hl(0, "GlancePreviewNormal", { bg = colors.bg_dark })
-    vim.api.nvim_set_hl(0, "GlanceBorderTop", { fg = colors.border_highlight, bg = colors.bg_dark })
-    vim.api.nvim_set_hl(0, "GlanceWinBarFilename", { fg = colors.fg_dark, bg = colors.bg_dark, bold = true })
-    vim.api.nvim_set_hl(0, "GlanceWinBarFilepath", { fg = colors.fg_dark, bg = colors.bg_dark })
-    vim.api.nvim_set_hl(0, "GlancePreviewBorderBottom", { fg = colors.border_highlight, bg = colors.bg_dark })
-    vim.api.nvim_set_hl(0, "GlanceListMatch", { bg = colors.none, fg = colors.yellow })
-    vim.api.nvim_set_hl(0, "GlancePreviewMatch", { fg = colors.bg_dark, bg = colors.yellow })
-    vim.api.nvim_set_hl(0, "GlanceListBorderBottom", { fg = colors.border_highlight, bg = colors.bg_dark })
   end,
 }

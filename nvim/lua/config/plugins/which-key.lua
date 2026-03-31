@@ -12,6 +12,7 @@ M.config = function()
       breadcrumb = "»",
       separator = "→",
       group = "",
+      rules = false,
     },
     win = {
       padding = { 1, 1 },

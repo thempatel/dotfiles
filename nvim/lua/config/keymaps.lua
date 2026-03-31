@@ -29,6 +29,8 @@ keymap("v", "<", "<gv", { silent = true, desc = "Indent Less" })
 keymap("v", ">", ">gv", { silent = true, desc = "Indent More" })
 keymap("n", "<C-e>", "<Nop>", { silent = true, desc = "Scroll screen down" })
 keymap("n", "<C-y>", "3<C-y>", { silent = true, desc = "Scroll screen up" })
+keymap({ "n", "v" }, ",", "<C-u>zz", { silent = true, desc = "Page up" })
+keymap({ "n", "v" }, ".", "<C-d>zz", { silent = true, desc = "Page down" })
 
 -- disable Ex mode, I always enter in it by mistake
 keymap("n", "Q", "<Nop>", { silent = true })

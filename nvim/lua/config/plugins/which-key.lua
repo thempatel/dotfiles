@@ -47,20 +47,16 @@ M.config = function()
   }
   wk.add({
     { "<leader>*", hidden = true, nowait = false, remap = false },
-    { "<leader><Tab>", group = "Tabs", icon = "󰓩 ", nowait = false, remap = false },
-    { "<leader>b", group = "Buffers", icon = " ", nowait = false, remap = false },
-    { "<leader>c", group = "Code", icon = " ", nowait = false, remap = false },
-    { "<leader>d", group = "Debug", icon = " ", nowait = false, remap = false },
-    { "<leader>f", group = "Telescope", icon = " ", nowait = false, remap = false },
+    { "<leader><Tab>", group = "Tabs", icon = "󰆍 ", nowait = false, remap = false },
+    { "<leader>b", group = "Buffers", icon = "󰉋 ", nowait = false, remap = false },
+    { "<leader>c", group = "Code", icon = "󰅲 ", nowait = false, remap = false },
+    { "<leader>f", group = "Find", icon = "󰍉 ", nowait = false, remap = false },
     { "<leader>g", group = "Git", icon = "󰊢 ", nowait = false, remap = false },
-    { "<leader>gd", group = "Diff", icon = " ", nowait = false, remap = false },
-    { "<leader>gy", group = "Copy URLs", icon = " ", nowait = false, remap = false },
-    { "<leader>h", group = "Gitsigns", icon = " ", nowait = false, remap = false },
-    { "<leader>ht", group = "Toggle", icon = "󰨚 ", nowait = false, remap = false },
-    { "<leader>l", group = "LSP", icon = "󱌢 ", nowait = false, remap = false },
-    { "<leader>o", group = "Octo", icon = " ", nowait = false, remap = false },
-    { "<leader>t", group = "Test", icon = " ", nowait = false, remap = false },
-    { "<leader>x", group = "Trouble", icon = " ", nowait = false, remap = false },
+    { "<leader>gy", group = "Copy URLs", icon = "󰌷 ", nowait = false, remap = false },
+    { "<leader>h", group = "Gitsigns", icon = "󰊕 ", nowait = false, remap = false },
+    { "<leader>ht", group = "Toggle", icon = "󰨦 ", nowait = false, remap = false },
+    { "<leader>l", group = "LSP", icon = "󰚵 ", nowait = false, remap = false },
+    { "<leader>x", group = "Trouble", icon = "󰀩 ", nowait = false, remap = false },
   }, opts)
 end
 

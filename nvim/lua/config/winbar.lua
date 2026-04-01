@@ -28,10 +28,9 @@ function M.render()
     -- sure to pick the longest prefix).
     ---@type table<string, string>
     local special_dirs = {
-      personal = vim.g.projects_dir,
+      code = vim.g.projects_dir,
       config = vim.env.XDG_CONFIG_HOME,
-      dotfiles = vim.env.HOME .. "/dotfiles",
-      port = vim.g.work_projects_dir,
+      dotfiles = vim.g.projects_dir .. "/dotfiles",
       ["~"] = vim.env.HOME,
     }
     for dir_name, dir_path in pairs(special_dirs) do

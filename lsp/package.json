@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "dependencies": {
+    "@mistweaverco/kulala-ls": "1.11.1",
+    "@typescript/native-preview": "7.0.0-dev.20260331.1",
+    "bash-language-server": "5.4.3",
+    "yaml-language-server": "1.15.0"
+  }
+}

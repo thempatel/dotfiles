@@ -3,16 +3,16 @@ local M = {}
 M.setup = function()
   local handlers = require("config.plugins.lsp.handlers")
 
-  vim.lsp.enable("kulala_ls") -- brew install kulala-ls
-  vim.lsp.enable("tsgo")
-  vim.lsp.enable("ty")
-  vim.lsp.enable("rust_analyzer")
-  vim.lsp.enable("lua_ls") -- brew install lua-language-server
+  vim.lsp.enable("kulala_ls") -- setup/02-lsp.sh
+  vim.lsp.enable("tsgo") -- setup/02-lsp.sh
+  vim.lsp.enable("ty") -- mise
+  vim.lsp.enable("rust_analyzer") -- mise
+  vim.lsp.enable("lua_ls") -- mise
   vim.lsp.enable("jsonls") -- brew install vscode-langservers-extracted
-  vim.lsp.enable("yamlls") -- npm i -g yaml-language-server
+  vim.lsp.enable("yamlls") -- setup/02-lsp.sh
   vim.lsp.enable("html") -- brew install vscode-langservers-extracted
-  vim.lsp.enable("gopls") -- brew install gopls
-  vim.lsp.enable("bashls") -- npm i -g bash-language-server
+  vim.lsp.enable("gopls") -- setup/02-lsp.sh
+  vim.lsp.enable("bashls") -- setup/02-lsp.sh
 
   vim.lsp.config("*", {
     capabilities = handlers.capabilities(),

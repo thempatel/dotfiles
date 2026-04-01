@@ -1,5 +1,6 @@
 [env]
 MISE_PIN = "1"
+_.path = ["{{config_root}}/lsp/bin"]
 
 [tools]
 "aqua:junegunn/fzf/fzf-tmux" = "v0.70.0"
@@ -24,6 +25,9 @@ protoc = "v34.1"
 ripgrep = "15.1.0"
 starship = "v1.24.2"
 task = "v3.49.1"
+ty = "0.0.26"
 uv = "0.10.12"
 yq = "v4.52.4"
 zoxide = "v0.9.9"
+rust-analyzer = "2026-03-30"
+lua-language-server = "3.17.1"

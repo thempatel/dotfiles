@@ -47,6 +47,7 @@ OPTIONAL_WRITE_PATHS=(
   "$HOME/.cache"                                    # Generic cache
   "$HOME/Library/pnpm"                              # pnpm global store
   "$HOME/.local"                                    # XDG data
+  "$HOME/.npm"                                      # npm cache
   "$HOME/.dbt"                                      # DBT Data
   "$HOME/go"                                        # Golang
 )

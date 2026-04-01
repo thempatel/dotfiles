@@ -32,6 +32,9 @@ keymap("n", "<C-y>", "3<C-y>", { silent = true, desc = "Scroll screen up" })
 keymap({ "n", "v" }, ",", "<C-u>zz", { silent = true, desc = "Page up" })
 keymap({ "n", "v" }, ".", "<C-d>zz", { silent = true, desc = "Page down" })
 
+keymap("n", "-", "<C-o>", { silent = true, desc = "Jump Back" })
+keymap("n", "=", "<C-i>", { silent = true, desc = "Jump Forward" })
+
 -- disable Ex mode, I always enter in it by mistake
 keymap("n", "Q", "<Nop>", { silent = true })
 

@@ -1,24 +1,5 @@
 {
   "cleanupPeriodDays": 60,
-  "permissions": {
-    "allow": [
-      "WebSearch",
-      "WebFetch",
-      "Skill(creating-a-plan)",
-      "Skill(implementing-a-plan)",
-      "Skill(github)",
-      "Skill(linear)",
-      "Read(~/.claude/skills)",
-      "Bash(git:*)",
-      "Bash(mkdir:*)",
-      "Bash(gh pr:*)",
-      "Bash(find:*)",
-      "Bash(grep:*)"
-    ],
-    "ask": [
-      "Bash(rm:*)"
-    ]
-  },
   "alwaysThinkingEnabled": false,
   "skipDangerousModePermissionPrompt": true,
   "autoUpdates": true,

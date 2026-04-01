@@ -20,6 +20,7 @@ M.config = function()
     },
     triggers = {
       { "<auto>", mode = "nistc" },
+      { "<leader>", mode = "x" },
     },
     sort = { "alphanum", "mod" },
     notify = false,
@@ -75,6 +76,9 @@ M.config = function()
     { "grr", hidden = true },
     { "grt", hidden = true },
     { "grx", hidden = true },
+    { "g%", hidden = true },
+    { "g[", hidden = true },
+    { "g]", hidden = true },
   })
 end
 

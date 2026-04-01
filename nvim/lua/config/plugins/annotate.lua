@@ -18,6 +18,7 @@ local function add_annotation()
 end
 
 local function add_annotation_visual()
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "x", false)
   local file = vim.fn.expand("%:.")
   local start_line = vim.fn.line("'<")
   local end_line = vim.fn.line("'>")
@@ -80,7 +81,7 @@ local function clear_annotations()
 end
 
 vim.keymap.set("n", "<leader>ca", add_annotation, { desc = "Annotate line" })
-vim.keymap.set("v", "<leader>ca", add_annotation_visual, { desc = "Annotate selection" })
+vim.keymap.set("x", "<leader>ca", add_annotation_visual, { desc = "Annotate selection" })
 vim.keymap.set("n", "<leader>cA", show_annotations, { desc = "Show annotations" })
 vim.keymap.set("n", "<leader>cy", copy_annotations, { desc = "Copy annotations" })
 vim.keymap.set("n", "<leader>cX", clear_annotations, { desc = "Clear annotations" })

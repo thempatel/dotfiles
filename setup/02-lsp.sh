@@ -17,6 +17,8 @@ ln -sf ../node_modules/.bin/bash-language-server "$BIN_DIR/bash-language-server"
 ln -sf ../node_modules/.bin/yaml-language-server "$BIN_DIR/yaml-language-server"
 ln -sf ../node_modules/.bin/tsgo "$BIN_DIR/tsgo"
 ln -sf ../node_modules/.bin/tsserver "$BIN_DIR/tsserver"
+ln -sf ../node_modules/.bin/vscode-json-language-server "$BIN_DIR/vscode-json-language-server"
+ln -sf ../node_modules/.bin/vscode-html-language-server "$BIN_DIR/vscode-html-language-server"
 
 echo "==> Installing gopls"
 GOBIN="$BIN_DIR" go install golang.org/x/tools/gopls@latest

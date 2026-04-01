@@ -8,9 +8,9 @@ M.setup = function()
   vim.lsp.enable("ty") -- mise
   vim.lsp.enable("rust_analyzer") -- mise
   vim.lsp.enable("lua_ls") -- mise
-  vim.lsp.enable("jsonls") -- brew install vscode-langservers-extracted
+  vim.lsp.enable("jsonls") -- setup/02-lsp.sh
   vim.lsp.enable("yamlls") -- setup/02-lsp.sh
-  vim.lsp.enable("html") -- brew install vscode-langservers-extracted
+  vim.lsp.enable("html") -- setup/02-lsp.sh
   vim.lsp.enable("gopls") -- setup/02-lsp.sh
   vim.lsp.enable("bashls") -- setup/02-lsp.sh
 

@@ -1,4 +1,4 @@
--- Install with: `brew install vscode-langservers-extracted`
+-- Install with: setup/02-lsp.sh (vscode-langservers-extracted via npm)
 return {
   settings = {
     json = {

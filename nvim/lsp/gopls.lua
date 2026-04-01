@@ -1,13 +1,8 @@
--- Install with: `brew install gopls`
+-- Install with: setup/02-lsp.sh
 return {
-  cmd = { "gopls", "serve" },
-  cmd_env = { GOFUMPT_SPLIT_LONG_LINES = "on" },
-  document_highlight = { enabled = false },
+  cmd = { "gopls" },
   filetypes = { "go", "gomod", "gowork", "gotmpl" },
-  root_dir = vim.fs.root(0, { "go.work", "go.mod", ".git" }),
-  flags = {
-    debounce_text_changes = 150,
-  },
+  root_markers = { "go.work", "go.mod", ".git" },
   settings = {
     gopls = {
       analyses = {

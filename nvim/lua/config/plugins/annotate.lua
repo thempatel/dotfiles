@@ -56,14 +56,21 @@ local function format_annotations()
 end
 
 local function show_annotations()
-  local content = format_annotations()
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(content, "\n"))
-  vim.bo[buf].filetype = "markdown"
-  vim.bo[buf].bufhidden = "wipe"
-  vim.cmd("botright split")
-  vim.api.nvim_win_set_buf(0, buf)
-  vim.api.nvim_win_set_height(0, math.min(20, #vim.split(content, "\n") + 2))
+  if #annotations == 0 then
+    vim.notify("No annotations.")
+    return
+  end
+
+  local items = {}
+  for _, a in ipairs(annotations) do
+    table.insert(items, {
+      filename = a.file,
+      lnum = a.line,
+      text = a.comment,
+    })
+  end
+  vim.fn.setqflist(items, "r")
+  vim.cmd("copen")
 end
 
 local function copy_annotations()

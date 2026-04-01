@@ -12,6 +12,7 @@ M.config = function()
       breadcrumb = "»",
       separator = "→",
       group = "",
+      mappings = false,
       rules = false,
     },
     win = {

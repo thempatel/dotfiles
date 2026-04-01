@@ -55,10 +55,26 @@ M.config = function()
     { "<leader>g", group = "Git", icon = "󰊢 ", nowait = false, remap = false },
     { "<leader>gy", group = "Copy URLs", icon = "󰌷 ", nowait = false, remap = false },
     { "<leader>h", group = "Gitsigns", icon = "󰊕 ", nowait = false, remap = false },
-    { "<leader>ht", group = "Toggle", icon = "󰨦 ", nowait = false, remap = false },
     { "<leader>l", group = "LSP", icon = "󰚵 ", nowait = false, remap = false },
-    { "<leader>x", group = "Trouble", icon = "󰀩 ", nowait = false, remap = false },
   }, opts)
+
+  -- Hide g-prefix keymaps we don't need in which-key
+  wk.add({
+    { "gc", hidden = true },
+    { "gj", hidden = true },
+    { "gO", hidden = true },
+    { "gx", hidden = true },
+    { "gY", hidden = true },
+    { "ge", hidden = true },
+    { "gh", hidden = true },
+    { "gH", hidden = true },
+    { "gra", hidden = true },
+    { "gri", hidden = true },
+    { "grn", hidden = true },
+    { "grr", hidden = true },
+    { "grt", hidden = true },
+    { "grx", hidden = true },
+  })
 end
 
 return M

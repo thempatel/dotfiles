@@ -6,6 +6,9 @@ M.lsp_keymaps = function(bufnr)
   vim.keymap.set("n", "gh", vim.lsp.buf.hover, { silent = true, buffer = bufnr, desc = "Hover Symbol" })
   vim.keymap.set("n", "ge", vim.diagnostic.open_float, { silent = true, buffer = bufnr, desc = "Show Diagnostic" })
   vim.keymap.set("n", "gH", vim.lsp.buf.signature_help, { silent = true, buffer = bufnr, desc = "Signature Help" })
+  vim.keymap.set("n", "gi", vim.lsp.buf.implementation, { silent = true, buffer = bufnr, desc = "Implementation" })
+  vim.keymap.set("n", "gr", vim.lsp.buf.references, { silent = true, buffer = bufnr, desc = "References" })
+  vim.keymap.set("n", "gt", vim.lsp.buf.type_definition, { silent = true, buffer = bufnr, desc = "Type Definition" })
   vim.keymap.set("n", "[d", M.diagnostic_goto(true), { silent = true, buffer = bufnr, desc = "Next Diagnostic" })
   vim.keymap.set("n", "]d", M.diagnostic_goto(false), { silent = true, buffer = bufnr, desc = "Previous Diagnostic" })
   vim.keymap.set(
@@ -37,19 +40,6 @@ M.on_attach = function(client, bufnr)
   if client.name == "lua_ls" then
     client.server_capabilities.documentFormattingProvider = false
     client.server_capabilities.documentRangeFormattingProvider = false
-  end
-
-  if client.supports_method("textDocument/inlayHint") then
-    vim.api.nvim_buf_set_keymap(bufnr, "n", "<leader>lh", "", {
-      callback = function()
-        vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled())
-      end,
-      desc = "Inlay hints",
-    })
-    local wk = require("which-key")
-    wk.add({
-      { "<leader>lh", icon = "󰨚 " },
-    })
   end
 
   local config = {

@@ -45,6 +45,9 @@ M.opts = {
 
 M.config = function(_, opts)
   require("nvim-treesitter").setup(opts)
+  require("ts_context_commentstring").setup({
+    enable_autocmd = false,
+  })
   vim.g.matchup_matchparen_offscreen = { method = "popup" }
 end
 

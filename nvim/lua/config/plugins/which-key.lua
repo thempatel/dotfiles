@@ -23,6 +23,9 @@ M.config = function()
       { "<leader>", mode = "x" },
     },
     sort = { "alphanum", "mod" },
+    disable = {
+      ft = { "minifiles" },
+    },
     notify = false,
     show_help = false,
     show_keys = false,

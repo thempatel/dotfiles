@@ -44,7 +44,7 @@ return {
       "<leader>fp",
       function()
         require("fzf-lua").files({
-          rg_opts = "--files --hidden --no-ignore -g '!{node_modules,.git,.direnv,dist,third-party}/'",
+          fd_opts = "--type f --hidden --no-ignore --exclude node_modules --exclude .git --exclude .direnv --exclude dist --exclude third-party",
         })
       end,
       desc = "Find Files",

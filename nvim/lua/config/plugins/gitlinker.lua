@@ -6,27 +6,31 @@ return {
   end,
   keys = {
     {
-      "<leader>gym",
-      "<cmd>GitLink default_branch<cr>",
-      desc = "Copy line URL (main branch)",
-      mode = { "n", "v" },
-    },
-    {
-      "<leader>gyb",
-      "<cmd>GitLink current_branch<cr>",
-      desc = "Copy line URL (current branch)",
-      mode = { "n", "v" },
-    },
-    {
-      "<leader>gyc",
+      "<leader>gyl",
       "<cmd>GitLink<cr>",
-      desc = "Copy line URL (commit)",
+      desc = "Copy line URL",
       mode = { "n", "v" },
+    },
+    {
+      "<leader>gyf",
+      function()
+        require("gitlinker").link({
+          router_type = "browse",
+          router = function(lk)
+            local url = require("gitlinker")._browse(lk)
+            if url then
+              return url:gsub("#.*$", "")
+            end
+          end,
+        })
+      end,
+      desc = "Copy file URL",
+      mode = { "n" },
     },
     {
       "<leader>gB",
       "<cmd>GitLink! blame_default_branch<cr>",
-      desc = "GitHub Blame (main branch)",
+      desc = "GitHub Blame",
       mode = { "v", "n" },
     },
   },

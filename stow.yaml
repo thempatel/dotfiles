@@ -29,3 +29,5 @@ targets:
     target: "~/.config/ghostty"
   - source: "nvim"
     target: "~/.config/nvim"
+  - source: "gh-dash"
+    target: "~/.config/gh-dash"

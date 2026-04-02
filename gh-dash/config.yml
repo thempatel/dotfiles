@@ -1,0 +1,19 @@
+pager:
+  diff: diffnav
+defaults:
+  view: prs
+  refetchIntervalMinutes: 10
+  layout:
+    prs:
+      repoName:
+        grow: true,
+        width: 10
+        hidden: false
+      base:
+        hidden: true
+
+  preview:
+    open: true
+    width: 80
+  prsLimit: 20
+  issuesLimit: 20

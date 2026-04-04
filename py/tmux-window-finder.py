@@ -326,10 +326,14 @@ def _do_notify(
         typer.echo("Specify --on or --off", err=True)
         raise typer.Exit(code=1)
 
+    # Use $TMUX_PANE to resolve the pane where the hook is running,
+    # rather than the currently focused window (which may differ).
+    pane_target = os.environ.get("TMUX_PANE")
+    target_args = ["-t", pane_target] if pane_target else []
     if session is None:
-        session = tmux("display-message", "-p", "#{session_name}")
+        session = tmux("display-message", *target_args, "-p", "#{session_name}")
     if window is None:
-        window = tmux("display-message", "-p", "#{window_index}")
+        window = tmux("display-message", *target_args, "-p", "#{window_index}")
 
     hook_input = _read_stdin_hook_input()
 

@@ -2,6 +2,7 @@
 # Fuzzy find tmux windows by session + process label.
 #   enter  - switch to selected window
 #   ctrl-d - kill selected window(s)
+#   ctrl-b - clear bell on selected window(s)
 #   ctrl-r - refresh window list
 
 tmux-window-finder lookup >/tmp/tmux-wf-list 2>/tmp/tmux-wf-pos || exit 0
@@ -15,10 +16,11 @@ TARGET=$(cat /tmp/tmux-wf-list | fzf-tmux -p \
   --track \
   --layout=reverse \
   --multi \
-  --header 'ctrl-d: kill · ctrl-r: refresh' \
+  --header 'ctrl-d: kill · ctrl-b: clear bell · ctrl-r: refresh' \
   --bind "load:pos($POS)" \
   --bind 'esc:transform:[[ -z {q} ]] && echo abort || echo clear-query' \
   --bind "ctrl-r:reload(tmux-window-finder update && tmux-window-finder lookup 2>/dev/null)" \
+  --bind "ctrl-b:execute-silent(cat {+f} | cut -f2 | xargs -I{} sh -c 'tmux-window-finder notify --off -s \"\${1%%:*}\" -w \"\${1#*:}\"' _ {})+reload(tmux-window-finder lookup 2>/dev/null)+clear-multi" \
   --bind "ctrl-d:execute-silent(cat {+f} | cut -f2 | xargs -I{} tmux kill-window -t {})+reload(tmux-window-finder update && tmux-window-finder lookup 2>/dev/null)+clear-multi" \
   --bind 'zero:ignore' \
   | cut -f2)

@@ -135,6 +135,25 @@ def update() -> None:
         pass  # hooks must never return non-zero
 
 
+def _prune_stale_files(live_files: set[Path]) -> None:
+    """Remove window files that no longer correspond to live tmux windows."""
+    if not STATE_DIR.exists():
+        return
+    for session_dir in STATE_DIR.iterdir():
+        if not session_dir.is_dir():
+            continue
+        _prune_session_dir(session_dir, live_files)
+
+
+def _prune_session_dir(session_dir: Path, live_files: set[Path]) -> None:
+    """Remove stale window files from a session dir, then remove the dir if empty."""
+    for window_file in session_dir.iterdir():
+        if window_file.suffix == ".json" and window_file not in live_files:
+            window_file.unlink()
+    if not any(session_dir.iterdir()):
+        session_dir.rmdir()
+
+
 def _do_update() -> None:
     try:
         raw = tmux(
@@ -149,8 +168,6 @@ def _do_update() -> None:
         return
 
     children_map = _build_children_map()
-
-    # Track which files we write so we can prune stale ones
     live_files: set[Path] = set()
 
     for line in raw.splitlines():
@@ -164,29 +181,15 @@ def _do_update() -> None:
         _atomic_write_json(path, existing)
         live_files.add(path)
 
-    # Prune stale window files and empty session dirs
-    if STATE_DIR.exists():
-        for session_dir in STATE_DIR.iterdir():
-            if not session_dir.is_dir():
-                continue
-            for window_file in session_dir.iterdir():
-                if window_file.suffix == ".json" and window_file not in live_files:
-                    window_file.unlink()
-            # Remove empty session dirs
-            if not any(session_dir.iterdir()):
-                session_dir.rmdir()
+    _prune_stale_files(live_files)
 
 
 # -- lookup -------------------------------------------------------------------
 
 
-@app.command()
-def lookup() -> None:
-    """Read state dir, output for fzf."""
-    if not STATE_DIR.exists():
-        _do_update()
-
-    entries: list[tuple[str, str, str, bool]] = []  # session, idx, label, notify
+def _read_entries() -> list[tuple[str, str, str, bool]]:
+    """Read all window entries from the state directory."""
+    entries: list[tuple[str, str, str, bool]] = []
     for session_dir in sorted(STATE_DIR.iterdir()):
         if not session_dir.is_dir():
             continue
@@ -194,19 +197,20 @@ def lookup() -> None:
         for window_file in sorted(session_dir.iterdir()):
             if window_file.suffix != ".json":
                 continue
-            idx = window_file.stem
             data = _read_window_json(window_file)
-            label = data.get("label", "?")
-            notify = data.get("notify", False)
-            entries.append((session, idx, label, notify))
+            entries.append(
+                (
+                    session,
+                    window_file.stem,
+                    data.get("label", "?"),
+                    data.get("notify", False),
+                )
+            )
+    return entries
 
-    if not entries:
-        return
 
-    active_session = tmux("display-message", "-p", "#{session_name}")
-    active_window = tmux("display-message", "-p", "#{window_index}")
-
-    # Sort by session, then AI tools first within each session
+def _sort_entries(entries: list[tuple[str, str, str, bool]]) -> None:
+    """Sort entries by session, then AI tools first, then label."""
     entries.sort(
         key=lambda e: (
             e[0].lower(),
@@ -215,13 +219,18 @@ def lookup() -> None:
         )
     )
 
-    # Count labels per session to determine if suffixes are needed
+
+def _format_lines(
+    entries: list[tuple[str, str, str, bool]],
+    active_session: str,
+    active_window: str,
+) -> tuple[list[str], int]:
+    """Build display lines with deduplicated labels. Returns (lines, active_line)."""
     label_counts: dict[tuple[str, str], int] = {}
     for session, _, label, _ in entries:
         key = (session, label)
         label_counts[key] = label_counts.get(key, 0) + 1
 
-    # Assign suffixed labels and track active line
     label_counters: dict[tuple[str, str], int] = {}
     lines: list[str] = []
     active_line = 1
@@ -240,6 +249,25 @@ def lookup() -> None:
         lines.append(f"{session} {display_label}\t{session}:{idx}")
         if session == active_session and idx == active_window:
             active_line = len(lines)
+
+    return lines, active_line
+
+
+@app.command()
+def lookup() -> None:
+    """Read state dir, output for fzf."""
+    if not STATE_DIR.exists():
+        _do_update()
+
+    entries = _read_entries()
+    if not entries:
+        return
+
+    active_session = tmux("display-message", "-p", "#{session_name}")
+    active_window = tmux("display-message", "-p", "#{window_index}")
+
+    _sort_entries(entries)
+    lines, active_line = _format_lines(entries, active_session, active_window)
 
     if not lines:
         return

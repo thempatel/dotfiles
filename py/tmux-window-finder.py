@@ -1,38 +1,39 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11"
-# dependencies = []
+# dependencies = ["typer"]
 # ///
 """
-tmux-window-finder.py - Fuzzy find tmux windows by session + process label.
+tmux-window-finder - Fuzzy find tmux windows by session + process label.
 
-Two modes:
-  update  — query tmux + ps, resolve labels, write cache (runs on hooks)
-  lookup  — read cache, output for fzf (runs on prefix+w)
+Subcommands:
+  update  — query tmux + ps, resolve labels, write per-window JSON (runs on hooks)
+  lookup  — read state dir, output for fzf (runs on prefix+w)
+  notify  — set/clear AI notification flag on a window
 
-Each window is displayed as:
-  {session_name} {process_label}
-
-Process labels:
-  - "{tool}: {topic}" if an AI tool descendant (claude, codex) is found,
-    using the pane title as the topic (e.g. "claude: Frame-Based Bot Detection")
-  - "{tool}" if an AI tool descendant is found but no meaningful pane title
-  - for shells (zsh/bash/fish): the pane title set by precmd (git branch or
-    dir name), falling back to the command name
-  - the pane_current_command otherwise (e.g. "vim", "python3")
-
-When multiple windows in a session share the same label, they are suffixed:
-  claude-1, claude-2, zsh-1, zsh-2, etc.
+State lives in ~/.local/state/tmux-window-finder/{session}/{window}.json
+Each file: { "label": "...", "notify": false }
 """
 
 from __future__ import annotations
 
-import fcntl
+import json
 import os
 import subprocess
 import sys
+from pathlib import Path
 
-CACHE_PATH = "/tmp/tmux-wf-cache"
+import typer
+
+app = typer.Typer(context_settings={"help_option_names": ["-h", "--help"]})
+
+STATE_DIR = Path.home() / ".local" / "state" / "tmux-window-finder"
+
+AI_TOOLS = {"claude", "codex"}
+SHELLS = {"zsh", "bash", "fish"}
+
+
+# -- helpers ------------------------------------------------------------------
 
 
 def tmux(*args: str) -> str:
@@ -55,13 +56,9 @@ def _build_children_map() -> dict[str, list[tuple[str, str]]]:
     return children
 
 
-AI_TOOLS = {"claude", "codex"}
-
-
 def find_ai_tool(
     pid: str, children_map: dict[str, list[tuple[str, str]]]
 ) -> str | None:
-    """Return the name of the AI tool descendant (e.g. 'claude', 'codex'), or None."""
     for child_pid, cmd_name in children_map.get(pid, []):
         if cmd_name in AI_TOOLS:
             return cmd_name
@@ -72,33 +69,22 @@ def find_ai_tool(
 
 
 def _extract_claude_topic(pane_title: str) -> str | None:
-    """Extract a meaningful topic from the pane title, or None if generic."""
     if not pane_title:
         return None
-    # Claude Code sets pane title to things like "✳ Frame-Based Bot Detection"
-    # or "⠐ tmux-window-finder caching" (with spinner chars).
-    # Strip leading unicode spinner/status chars and whitespace.
     stripped = pane_title.lstrip()
     if stripped:
-        # Remove leading non-ASCII status character if present
         first = stripped[0]
         if not first.isascii():
             stripped = stripped[1:].lstrip()
-    # Ignore generic titles like "Claude Code" or hostname-like strings
     if not stripped or stripped == "Claude Code" or "." in stripped:
         return None
     return stripped
 
 
-SHELLS = {"zsh", "bash", "fish"}
-
-
 def _extract_shell_title(pane_title: str) -> str | None:
-    """Extract a meaningful title set by precmd (branch name or dir name)."""
     if not pane_title:
         return None
     stripped = pane_title.strip()
-    # Ignore hostname-like titles (contain dots like "milan-host.local")
     if not stripped or "." in stripped:
         return None
     return stripped
@@ -123,11 +109,33 @@ def get_process_label(
     return cmd
 
 
-# -- update mode: resolve labels and write cache ----------------------------
+def _read_window_json(path: Path) -> dict:
+    try:
+        return json.loads(path.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
 
 
-def cmd_update() -> None:
-    """Query tmux + ps, resolve process labels, write cache atomically."""
+def _atomic_write_json(path: Path, data: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data) + "\n")
+    tmp.rename(path)
+
+
+# -- update -------------------------------------------------------------------
+
+
+@app.command()
+def update() -> None:
+    """Query tmux + ps, resolve process labels, write per-window state."""
+    try:
+        _do_update()
+    except Exception:
+        pass  # hooks must never return non-zero
+
+
+def _do_update() -> None:
     try:
         raw = tmux(
             "list-windows",
@@ -142,56 +150,63 @@ def cmd_update() -> None:
 
     children_map = _build_children_map()
 
-    lines: list[str] = []
+    # Track which files we write so we can prune stale ones
+    live_files: set[Path] = set()
+
     for line in raw.splitlines():
         session, idx, cmd, pane_pid, pane_title = line.split("\t", 4)
         label = get_process_label(cmd, pane_pid, pane_title, children_map)
-        lines.append(f"{session}\t{idx}\t{label}")
 
-    tmp_path = CACHE_PATH + ".tmp"
-    fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
-    try:
-        fcntl.flock(fd, fcntl.LOCK_EX)
-        os.write(fd, "\n".join(lines).encode() + b"\n")
-        os.fsync(fd)
-    finally:
-        os.close(fd)
-    os.rename(tmp_path, CACHE_PATH)
+        path = STATE_DIR / session / f"{idx}.json"
+        existing = _read_window_json(path)
+        existing["label"] = label
+        existing.setdefault("notify", False)
+        _atomic_write_json(path, existing)
+        live_files.add(path)
+
+    # Prune stale window files and empty session dirs
+    if STATE_DIR.exists():
+        for session_dir in STATE_DIR.iterdir():
+            if not session_dir.is_dir():
+                continue
+            for window_file in session_dir.iterdir():
+                if window_file.suffix == ".json" and window_file not in live_files:
+                    window_file.unlink()
+            # Remove empty session dirs
+            if not any(session_dir.iterdir()):
+                session_dir.rmdir()
 
 
-# -- lookup mode: read cache, output for fzf --------------------------------
+# -- lookup -------------------------------------------------------------------
 
 
-def _read_cache() -> list[tuple[str, str, str]]:
-    """Read cache, return list of (session, window_index, label)."""
-    try:
-        with open(CACHE_PATH) as f:
-            data = f.read()
-    except FileNotFoundError:
-        cmd_update()
-        with open(CACHE_PATH) as f:
-            data = f.read()
+@app.command()
+def lookup() -> None:
+    """Read state dir, output for fzf."""
+    if not STATE_DIR.exists():
+        _do_update()
 
-    rows: list[tuple[str, str, str]] = []
-    for line in data.splitlines():
-        if not line:
+    entries: list[tuple[str, str, str, bool]] = []  # session, idx, label, notify
+    for session_dir in sorted(STATE_DIR.iterdir()):
+        if not session_dir.is_dir():
             continue
-        parts = line.split("\t", 2)
-        if len(parts) == 3:
-            rows.append((parts[0], parts[1], parts[2]))
-    return rows
+        session = session_dir.name
+        for window_file in sorted(session_dir.iterdir()):
+            if window_file.suffix != ".json":
+                continue
+            idx = window_file.stem
+            data = _read_window_json(window_file)
+            label = data.get("label", "?")
+            notify = data.get("notify", False)
+            entries.append((session, idx, label, notify))
 
-
-def cmd_lookup() -> None:
-    """Read cache, output for fzf. Only subprocess call is display-message."""
-    entries = _read_cache()
     if not entries:
         return
 
     active_session = tmux("display-message", "-p", "#{session_name}")
     active_window = tmux("display-message", "-p", "#{window_index}")
 
-    # Sort by session, then claude windows first within each session
+    # Sort by session, then AI tools first within each session
     entries.sort(
         key=lambda e: (
             e[0].lower(),
@@ -202,7 +217,7 @@ def cmd_lookup() -> None:
 
     # Count labels per session to determine if suffixes are needed
     label_counts: dict[tuple[str, str], int] = {}
-    for session, _, label in entries:
+    for session, _, label, _ in entries:
         key = (session, label)
         label_counts[key] = label_counts.get(key, 0) + 1
 
@@ -210,7 +225,7 @@ def cmd_lookup() -> None:
     label_counters: dict[tuple[str, str], int] = {}
     lines: list[str] = []
     active_line = 1
-    for session, idx, label in entries:
+    for session, idx, label, notify in entries:
         key = (session, label)
         if label_counts[key] > 1:
             n = label_counters.get(key, 0) + 1
@@ -218,6 +233,9 @@ def cmd_lookup() -> None:
             display_label = f"{label}-{n}"
         else:
             display_label = label
+
+        if notify:
+            display_label = f"\U0001f514 {display_label}"
 
         lines.append(f"{session} {display_label}\t{session}:{idx}")
         if session == active_session and idx == active_window:
@@ -231,19 +249,81 @@ def cmd_lookup() -> None:
         print(line)
 
 
-def main() -> None:
-    cmd = sys.argv[1] if len(sys.argv) > 1 else "lookup"
-    if cmd == "update":
-        try:
-            cmd_update()
-        except Exception:
-            pass  # hooks must never return non-zero
-    elif cmd == "lookup":
-        cmd_lookup()
-    else:
-        print(f"usage: tmux-window-finder [update|lookup]", file=sys.stderr)
-        sys.exit(1)
+# -- notify -------------------------------------------------------------------
+
+
+@app.command()
+def notify(
+    on: bool = typer.Option(False, "--on", help="Set notification flag"),
+    off: bool = typer.Option(False, "--off", help="Clear notification flag"),
+    agent: str | None = typer.Option(
+        None, "--agent", "-a", help="Coding agent name (claude, codex)"
+    ),
+    session: str | None = typer.Option(
+        None, "--session", "-s", help="Target session (auto-detected if omitted)"
+    ),
+    window: str | None = typer.Option(
+        None, "--window", "-w", help="Target window index (auto-detected if omitted)"
+    ),
+) -> None:
+    """Set or clear the AI notification flag on a tmux window."""
+    try:
+        _do_notify(on=on, off=off, agent=agent, session=session, window=window)
+    except Exception:
+        pass  # hooks must never return non-zero
+
+
+def _read_stdin_hook_input() -> dict:
+    """Read JSON hook input from stdin if available."""
+    if sys.stdin.isatty():
+        return {}
+    try:
+        data = sys.stdin.read()
+        if data.strip():
+            return json.loads(data)
+    except (json.JSONDecodeError, OSError):
+        pass
+    return {}
+
+
+def _do_notify(
+    *,
+    on: bool,
+    off: bool,
+    agent: str | None,
+    session: str | None,
+    window: str | None,
+) -> None:
+    if not on and not off:
+        typer.echo("Specify --on or --off", err=True)
+        raise typer.Exit(code=1)
+
+    if session is None:
+        session = tmux("display-message", "-p", "#{session_name}")
+    if window is None:
+        window = tmux("display-message", "-p", "#{window_index}")
+
+    hook_input = _read_stdin_hook_input()
+
+    path = STATE_DIR / session / f"{window}.json"
+    existing = _read_window_json(path)
+    existing["notify"] = on
+    existing.setdefault("label", "?")
+
+    # Store debug metadata from hook invocation
+    existing["last_hook"] = {
+        "event": hook_input.get("hook_event_name"),
+        "action": "on" if on else "off",
+        "agent": agent,
+        "session_id": hook_input.get("session_id"),
+        "cwd": hook_input.get("cwd"),
+    }
+
+    _atomic_write_json(path, existing)
+
+
+# -- main ---------------------------------------------------------------------
 
 
 if __name__ == "__main__":
-    main()
+    app()

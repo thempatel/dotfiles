@@ -20,7 +20,7 @@ TARGET=$(cat /tmp/tmux-wf-list | fzf-tmux -p \
   --bind 'esc:transform:[[ -z {q} ]] && echo abort || echo clear-query' \
   --bind "ctrl-r:reload(tmux-window-finder update && tmux-window-finder lookup 2>/dev/null)" \
   --bind "ctrl-d:execute-silent(cat {+f} | cut -f2 | xargs -I{} tmux kill-window -t {})+reload(tmux-window-finder update && tmux-window-finder lookup 2>/dev/null)+clear-multi" \
-  --bind 'zero:abort' \
+  --bind 'zero:ignore' \
   | cut -f2)
 
 [ -z "$TARGET" ] && exit 0

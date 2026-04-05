@@ -19,7 +19,7 @@ M.config = function()
       padding = { 1, 1 },
     },
     triggers = {
-      { "<auto>", mode = "nistc" },
+      { "<auto>", mode = "ni" },
       { "<leader>", mode = "x" },
     },
     sort = { "alphanum", "mod" },

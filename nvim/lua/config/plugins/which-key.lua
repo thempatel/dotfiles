@@ -61,6 +61,15 @@ M.config = function()
     { "<leader>gy", group = "Copy URLs", icon = "󰌷 ", nowait = false, remap = false },
     { "<leader>h", group = "Gitsigns", icon = "󰊕 ", nowait = false, remap = false },
     { "<leader>l", group = "LSP", icon = "󰚵 ", nowait = false, remap = false },
+    { "<leader>p", group = "Panes", icon = " ", nowait = false, remap = false },
+    { "<leader>pr", "<C-w>l", desc = "Move Right", nowait = false, remap = false },
+    { "<leader>pl", "<C-w>h", desc = "Move Left", nowait = false, remap = false },
+    { "<leader>pc", group = "Create", nowait = false, remap = false },
+    { "<leader>pcr", "<cmd>vsplit<cr><C-w>l", desc = "Split Right", nowait = false, remap = false },
+    { "<leader>pcl", "<cmd>vsplit<cr>", desc = "Split Left", nowait = false, remap = false },
+    { "<leader>pd", group = "Close", nowait = false, remap = false },
+    { "<leader>pdr", "<C-w>l<cmd>q<cr>", desc = "Close Right", nowait = false, remap = false },
+    { "<leader>pdl", "<C-w>h<cmd>q<cr>", desc = "Close Left", nowait = false, remap = false },
     { "<leader>t", "<cmd>terminal<cr>", desc = "Terminal", icon = " ", nowait = false, remap = false },
   }, opts)
 

@@ -24,20 +24,11 @@ keymap("n", "dd", dd, { noremap = true, expr = true })
 keymap("n", "Y", "y$", { silent = true })
 keymap("n", "n", "nzzzv", { silent = true })
 keymap("n", "N", "Nzzzv", { silent = true })
-keymap("n", "gj", "mzJ`z", { silent = true, desc = "Join Line Below" })
 keymap("v", "<", "<gv", { silent = true, desc = "Indent Less" })
 keymap("v", ">", ">gv", { silent = true, desc = "Indent More" })
-keymap("n", "<C-e>", "<Nop>", { silent = true, desc = "Scroll screen down" })
-keymap("n", "<C-y>", "3<C-y>", { silent = true, desc = "Scroll screen up" })
-keymap({ "n", "v" }, ",", function()
-  vim.cmd("normal! " .. math.floor(vim.api.nvim_win_get_height(0) / 4) .. "kzz")
-end, { silent = true, desc = "Page up" })
-keymap({ "n", "v" }, ".", function()
-  vim.cmd("normal! " .. math.floor(vim.api.nvim_win_get_height(0) / 4) .. "jzz")
-end, { silent = true, desc = "Page down" })
 
-keymap("n", "-", "<C-o>", { silent = true, desc = "Jump Back" })
-keymap("n", "=", "<C-i>", { silent = true, desc = "Jump Forward" })
+
+
 
 -- disable Ex mode, I always enter in it by mistake
 keymap("n", "Q", "<Nop>", { silent = true })

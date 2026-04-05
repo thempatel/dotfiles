@@ -36,6 +36,7 @@ return {
       end,
       desc = "Grep Word Under Cursor",
     },
+    { "<leader>fh", "<cmd>FzfLua helptags<cr>", desc = "Help Pages" },
     { "<leader>fb", "<cmd>FzfLua buffers<cr>", desc = "Buffers" },
     { "<leader>fc", "<cmd>FzfLua command_history<cr>", desc = "Command History" },
     { "<leader>fr", "<cmd>FzfLua resume<cr>", desc = "Resume" },

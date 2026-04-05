@@ -37,7 +37,6 @@ keymap("n", "Q", "<Nop>", { silent = true })
 keymap("n", "<leader><leader>", "<C-^>", { silent = true, desc = "Last Buffer" })
 keymap("n", "<leader>bn", "<cmd>enew<cr>", { silent = true, desc = "New File" })
 keymap("n", "<leader>bq", "<cmd>q<cr>", { silent = true, desc = "Quit File" })
--- keymap("n", "<leader>bz", "<cmd>tab split<cr>", { silent = true, desc = "Zoom Buffer" })
 keymap("n", "<leader>bo", function()
   local current_buffer = vim.api.nvim_get_current_buf()
 
@@ -50,11 +49,6 @@ end, { desc = "Close Other Buffers" })
 keymap("n", "<leader>bw", "<cmd>w<cr>", { silent = true, desc = "Write File" })
 keymap("n", "<leader>bW", "<cmd>wa<cr>", { silent = true, desc = "Write All Files" })
 keymap("n", "<leader>bQ", "<cmd>qa!<cr>", { silent = true, desc = "Quit nvim" })
-
--- keymap("n", "<leader>fm", "<cmd>messages<cr>", { silent = true, desc = "Messages" })
-
--- keymap("n", "<leader>e", "<cmd>NvimTreeToggle<CR>", { silent = true, desc = "Toggle File Tree" })
--- keymap("n", "<leader>e", "<cmd>Yazi<CR>", { silent = true, desc = "Toggle File Tree" })
 
 if vim.opt.diff:get() then
   keymap("n", "<leader>1", ":diffget LOCAL<CR>", { silent = true, desc = "Take Local" })

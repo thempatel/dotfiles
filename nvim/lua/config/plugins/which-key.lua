@@ -61,6 +61,7 @@ M.config = function()
     { "<leader>gy", group = "Copy URLs", icon = "󰌷 ", nowait = false, remap = false },
     { "<leader>h", group = "Gitsigns", icon = "󰊕 ", nowait = false, remap = false },
     { "<leader>l", group = "LSP", icon = "󰚵 ", nowait = false, remap = false },
+    { "<leader>t", "<cmd>terminal<cr>", desc = "Terminal", icon = " ", nowait = false, remap = false },
   }, opts)
 
   -- Hide g-prefix keymaps we don't need in which-key

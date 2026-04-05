@@ -67,6 +67,14 @@ cc-no-commit() {
   jq '.includeCoAuthoredBy = false' "$file" | sponge "$file"
 }
 
+y() {
+  local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
+  command yazi "$@" --cwd-file="$tmp"
+  IFS= read -r -d '' cwd < "$tmp"
+  [ "$cwd" != "$PWD" ] && [ -d "$cwd" ] && builtin cd -- "$cwd"
+  rm -f -- "$tmp"
+}
+
 zle -N pb-kill-whole-line
 zle -N pb-yank
 zle -N fzf-search

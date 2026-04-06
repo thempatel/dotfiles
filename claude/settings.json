@@ -1,6 +1,6 @@
 {
   "cleanupPeriodDays": 60,
-  "alwaysThinkingEnabled": false,
+  "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true,
   "autoUpdates": true,
   "effortLevel": "high",

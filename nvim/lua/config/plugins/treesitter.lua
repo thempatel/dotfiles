@@ -18,7 +18,6 @@ local ensure_installed = {
   "dockerfile",
   "go",
   "java",
-  "jsonc",
   "regex",
   "scss",
   "tsx",

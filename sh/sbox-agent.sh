@@ -71,6 +71,7 @@ AGENT_ARGS=()
 case "$AGENT" in
   claude)
     AGENT_ARGS=(--dangerously-skip-permissions)
+    export CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1
     ;;
   codex)
     # Disable codex's inner Seatbelt sandbox — nested sandbox-exec is not

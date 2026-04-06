@@ -68,17 +68,22 @@ def find_ai_tool(
     return None
 
 
-def _extract_claude_topic(pane_title: str) -> str | None:
-    if not pane_title:
-        return None
-    stripped = pane_title.lstrip()
-    if stripped:
-        first = stripped[0]
-        if not first.isascii():
-            stripped = stripped[1:].lstrip()
-    if not stripped or stripped == "Claude Code" or "." in stripped:
-        return None
-    return stripped
+def _git_branch(path: str) -> str | None:
+    """Get the current git branch for a directory, or None."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", path, "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if result.returncode == 0:
+            branch = result.stdout.strip()
+            if branch and branch != "HEAD":
+                return branch
+    except (subprocess.TimeoutExpired, OSError):
+        pass
+    return None
 
 
 def _extract_shell_title(pane_title: str) -> str | None:
@@ -94,13 +99,14 @@ def get_process_label(
     cmd: str,
     pane_pid: str,
     pane_title: str,
+    pane_path: str,
     children_map: dict[str, list[tuple[str, str]]],
 ) -> str:
     ai_tool = find_ai_tool(pane_pid, children_map)
     if ai_tool:
-        topic = _extract_claude_topic(pane_title)
-        if topic:
-            return f"{ai_tool}: {topic}"
+        branch = _git_branch(pane_path) if pane_path else None
+        if branch:
+            return f"{ai_tool}: {branch}"
         return ai_tool
     if cmd in SHELLS:
         title = _extract_shell_title(pane_title)
@@ -160,7 +166,7 @@ def _do_update() -> None:
             "list-windows",
             "-a",
             "-F",
-            "#{session_name}\t#{window_index}\t#{pane_current_command}\t#{pane_pid}\t#{pane_title}",
+            "#{session_name}\t#{window_index}\t#{pane_current_command}\t#{pane_pid}\t#{pane_title}\t#{pane_current_path}",
         )
     except subprocess.CalledProcessError:
         return
@@ -171,8 +177,8 @@ def _do_update() -> None:
     live_files: set[Path] = set()
 
     for line in raw.splitlines():
-        session, idx, cmd, pane_pid, pane_title = line.split("\t", 4)
-        label = get_process_label(cmd, pane_pid, pane_title, children_map)
+        session, idx, cmd, pane_pid, pane_title, pane_path = line.split("\t", 5)
+        label = get_process_label(cmd, pane_pid, pane_title, pane_path, children_map)
 
         path = STATE_DIR / session / f"{idx}.json"
         existing = _read_window_json(path)

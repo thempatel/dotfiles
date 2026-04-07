@@ -109,6 +109,13 @@ if vim.fn.executable("rg") then
   vim.opt.grepformat = "%f:%l:%c:%m,%f:%l:%m"
 end
 
+-- Per-repo shada: isolate jumplist, marks, etc. across git repos
+local git_root = vim.fs.root(0, ".git")
+if git_root then
+  local project_hash = vim.fn.sha256(git_root):sub(1, 12)
+  vim.o.shadafile = vim.fn.stdpath("state") .. "/shada/" .. project_hash .. ".shada"
+end
+
 vim.g.editorconfig = false
 
 vim.opt.statuscolumn = [[%!v:lua.require'config.utils.ui'.statuscolumn()]]

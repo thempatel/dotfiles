@@ -71,6 +71,7 @@ M.config = function()
     { "<leader>pdr", "<C-w>l<cmd>q<cr>", desc = "Close Right", nowait = false, remap = false },
     { "<leader>pdl", "<C-w>h<cmd>q<cr>", desc = "Close Left", nowait = false, remap = false },
     { "<leader>t", "<cmd>terminal<cr>", desc = "Terminal", icon = " ", nowait = false, remap = false },
+    { "<leader>y", group = "Yazi", icon = "󰇥 ", nowait = false, remap = false },
   }, opts)
 
   -- Hide g-prefix keymaps we don't need in which-key

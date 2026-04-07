@@ -73,6 +73,7 @@ case "$AGENT" in
     AGENT_ARGS=(--dangerously-skip-permissions)
     export CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1
     export CLAUDE_CODE_EFFORT_LEVEL=max
+    export CLAUDE_CODE_DISABLE_1M_CONTEXT=1
     ;;
   codex)
     # Disable codex's inner Seatbelt sandbox — nested sandbox-exec is not

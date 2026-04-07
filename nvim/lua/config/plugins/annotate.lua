@@ -22,8 +22,7 @@ local function save_annotations()
     return
   end
   vim.fn.mkdir(state_dir, "p")
-  local path = session_key()
-  vim.fn.writefile({ vim.fn.json_encode(annotations) }, path)
+  vim.fn.writefile({ vim.fn.json_encode(annotations) }, session_key())
 end
 
 local function load_annotations()
@@ -40,19 +39,67 @@ local function load_annotations()
   end
 end
 
+local function open_annotation_buf(header, callback)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[buf].buftype = "acwrite"
+  vim.bo[buf].filetype = "markdown"
+  vim.api.nvim_buf_set_name(buf, "annotation://" .. header)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "// " .. header, "" })
+
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = "editor",
+    width = math.floor(vim.o.columns * 0.6),
+    height = math.floor(vim.o.lines * 0.4),
+    col = math.floor(vim.o.columns * 0.2),
+    row = math.floor(vim.o.lines * 0.2),
+    style = "minimal",
+    border = "rounded",
+    title = " Annotate ",
+    title_pos = "center",
+  })
+
+  vim.api.nvim_win_set_cursor(win, { 2, 0 })
+  vim.cmd("startinsert")
+
+  local group = vim.api.nvim_create_augroup("annotate_buf_" .. buf, { clear = true })
+
+  vim.api.nvim_create_autocmd("BufWriteCmd", {
+    group = group,
+    buffer = buf,
+    callback = function()
+      local lines = vim.api.nvim_buf_get_lines(buf, 1, -1, false)
+      -- trim trailing empty lines
+      while #lines > 0 and lines[#lines] == "" do
+        table.remove(lines)
+      end
+      if #lines > 0 then
+        callback(table.concat(lines, "\n"))
+      end
+      vim.bo[buf].modified = false
+      vim.api.nvim_win_close(win, true)
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end,
+  })
+
+  vim.api.nvim_create_autocmd("WinClosed", {
+    group = group,
+    buffer = buf,
+    callback = function()
+      vim.api.nvim_del_augroup_by_id(group)
+      if vim.api.nvim_buf_is_valid(buf) then
+        vim.api.nvim_buf_delete(buf, { force = true })
+      end
+    end,
+  })
+end
+
 local function add_annotation()
   local file = vim.fn.expand("%:.")
   local line = vim.fn.line(".")
+  local header = file .. ":" .. line
 
-  vim.ui.input({ prompt = "Comment: " }, function(comment)
-    if not comment or comment == "" then
-      return
-    end
-    table.insert(annotations, {
-      file = file,
-      line = line,
-      comment = comment,
-    })
+  open_annotation_buf(header, function(comment)
+    table.insert(annotations, { file = file, line = line, comment = comment })
     vim.notify(string.format("Annotation added (%d total)", #annotations))
   end)
 end
@@ -62,11 +109,11 @@ local function add_annotation_visual()
   local file = vim.fn.expand("%:.")
   local start_line = vim.fn.line("'<")
   local end_line = vim.fn.line("'>")
+  local header = start_line == end_line
+    and file .. ":" .. start_line
+    or file .. ":" .. start_line .. "-" .. end_line
 
-  vim.ui.input({ prompt = "Comment: " }, function(comment)
-    if not comment or comment == "" then
-      return
-    end
+  open_annotation_buf(header, function(comment)
     table.insert(annotations, {
       file = file,
       line = start_line,
@@ -123,9 +170,9 @@ end
 
 vim.keymap.set("n", "<leader>ca", add_annotation, { desc = "Annotate line" })
 vim.keymap.set("x", "<leader>ca", add_annotation_visual, { desc = "Annotate selection" })
-vim.keymap.set("n", "<leader>cA", show_annotations, { desc = "Show annotations" })
+vim.keymap.set("n", "<leader>cl", show_annotations, { desc = "Show annotations" })
 vim.keymap.set("n", "<leader>cy", copy_annotations, { desc = "Copy annotations" })
-vim.keymap.set("n", "<leader>cX", clear_annotations, { desc = "Clear annotations" })
+vim.keymap.set("n", "<leader>cd", clear_annotations, { desc = "Clear annotations" })
 
 local group = vim.api.nvim_create_augroup("annotate_persistence", { clear = true })
 vim.api.nvim_create_autocmd("User", {

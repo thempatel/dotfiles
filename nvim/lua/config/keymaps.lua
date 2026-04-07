@@ -47,6 +47,13 @@ keymap("n", "<leader>bo", function()
   end
 end, { desc = "Close Other Buffers" })
 keymap("n", "<leader>bw", "<cmd>w<cr>", { silent = true, desc = "Write File" })
+keymap("n", "<leader>o", function()
+  local buf = vim.api.nvim_get_current_buf()
+  local name = vim.api.nvim_buf_get_name(buf)
+  if name ~= "" and vim.fn.filereadable(name) == 1 then
+    require("oil").open(vim.fn.fnamemodify(name, ":h"))
+  end
+end, { silent = true, desc = "Oil (buffer dir)" })
 keymap("n", "<leader>bW", "<cmd>wa<cr>", { silent = true, desc = "Write All Files" })
 keymap("n", "<leader>bQ", "<cmd>qa!<cr>", { silent = true, desc = "Quit nvim" })
 

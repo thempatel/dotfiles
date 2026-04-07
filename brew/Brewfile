@@ -32,3 +32,4 @@ brew "xz"
 
 cask "maccy"
 cask "ghostty"
+brew "pkg-config"

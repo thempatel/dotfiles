@@ -3,6 +3,9 @@ gui:
   skipAmendWarning: true
   skipStashWarning: false
   scrollHeight: 25
+  theme:
+    selectedLineBgColor:
+      - '#2d2d2d'
 
 git:
   branchPrefix: "milan/"

@@ -46,7 +46,8 @@ OPTIONAL_WRITE_PATHS=(
   "$HOME/.rustup"                                   # Rust/Cargo
   "$HOME/.cache"                                    # Generic cache
   "$HOME/Library/pnpm"                              # pnpm global store
-  "$HOME/.local/share"                              # XDG data
+  "$HOME/.local"                                    # XDG data
+  "$HOME/.npm"                                      # npm cache
   "$HOME/.dbt"                                      # DBT Data
   "$HOME/go"                                        # Golang
 )
@@ -70,6 +71,7 @@ AGENT_ARGS=()
 case "$AGENT" in
   claude)
     AGENT_ARGS=(--dangerously-skip-permissions)
+    export CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1
     ;;
   codex)
     # Disable codex's inner Seatbelt sandbox — nested sandbox-exec is not

@@ -1,26 +1,60 @@
 {
   "cleanupPeriodDays": 60,
-  "permissions": {
-    "allow": [
-      "WebSearch",
-      "WebFetch",
-      "Skill(creating-a-plan)",
-      "Skill(implementing-a-plan)",
-      "Skill(github)",
-      "Skill(linear)",
-      "Read(~/.claude/skills)",
-      "Bash(git:*)",
-      "Bash(mkdir:*)",
-      "Bash(gh pr:*)",
-      "Bash(find:*)",
-      "Bash(grep:*)"
-    ],
-    "ask": [
-      "Bash(rm:*)"
-    ]
-  },
-  "alwaysThinkingEnabled": false,
+  "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true,
   "autoUpdates": true,
-  "effortLevel": "high"
+  "effortLevel": "high",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tmux-window-finder notify --on --agent claude"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tmux-window-finder notify --on --agent claude"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tmux-window-finder notify --off --agent claude"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tmux-window-finder notify --off --agent claude"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tmux-window-finder notify --off --agent claude"
+          }
+        ]
+      }
+    ]
+  }
 }

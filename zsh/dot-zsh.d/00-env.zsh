@@ -1,3 +1,4 @@
+export EDITOR=nvim
 export PAGER=bat
 export LSCOLORS="Gxfxcxdxbxegedabagacad"
 export GPG_TTY=$(tty)

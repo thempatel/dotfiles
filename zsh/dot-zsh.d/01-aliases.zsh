@@ -14,7 +14,9 @@ alias speedtest="networkQuality -v -s"
 
 # git
 alias gs='git status'
+alias cs='changeset'
 alias lg='lazygit'
+alias v='nvim'
 
 # proxyman
 alias pm='proxyman-cli proxy'

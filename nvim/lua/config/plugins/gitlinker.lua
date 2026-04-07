@@ -33,5 +33,32 @@ return {
       desc = "GitHub Blame",
       mode = { "v", "n" },
     },
+    {
+      "<leader>gyp",
+      function()
+        local path = vim.fn.expand("%:.")
+        local line = vim.fn.line(".")
+        local ref = path .. ":" .. line
+        vim.fn.setreg("+", ref)
+        vim.notify(ref, vim.log.levels.INFO, { title = "Copied" })
+      end,
+      desc = "Copy path:line",
+      mode = { "n" },
+    },
+    {
+      "<leader>gyp",
+      function()
+        local path = vim.fn.expand("%:.")
+        local start_line = vim.fn.line("'<")
+        local end_line = vim.fn.line("'>")
+        local ref = start_line == end_line
+          and path .. ":" .. start_line
+          or path .. ":" .. start_line .. "-" .. end_line
+        vim.fn.setreg("+", ref)
+        vim.notify(ref, vim.log.levels.INFO, { title = "Copied" })
+      end,
+      desc = "Copy path:line",
+      mode = { "v" },
+    },
   },
 }

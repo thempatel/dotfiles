@@ -76,8 +76,14 @@ local function open_annotation_buf(header, callback)
         callback(table.concat(lines, "\n"))
       end
       vim.bo[buf].modified = false
-      vim.api.nvim_win_close(win, true)
-      vim.api.nvim_buf_delete(buf, { force = true })
+      vim.schedule(function()
+        if vim.api.nvim_win_is_valid(win) then
+          vim.api.nvim_win_close(win, true)
+        end
+        if vim.api.nvim_buf_is_valid(buf) then
+          vim.api.nvim_buf_delete(buf, { force = true })
+        end
+      end)
     end,
   })
 
@@ -124,6 +130,13 @@ local function add_annotation_visual()
   end)
 end
 
+local function annotation_ref(a)
+  if a.end_line then
+    return string.format("%s:%d-%d", a.file, a.line, a.end_line)
+  end
+  return string.format("%s:%d", a.file, a.line)
+end
+
 local function format_annotations()
   if #annotations == 0 then
     return "No annotations."
@@ -131,11 +144,18 @@ local function format_annotations()
 
   local parts = {}
   for _, a in ipairs(annotations) do
-    local ref = a.end_line and string.format("%s:%d-%d", a.file, a.line, a.end_line)
-      or string.format("%s:%d", a.file, a.line)
-    table.insert(parts, string.format("// %s\n%s", ref, a.comment))
+    table.insert(parts, string.format("// %s\n%s", annotation_ref(a), a.comment))
   end
   return table.concat(parts, "\n\n")
+end
+
+local function format_entry(i, a)
+  local comment = a.comment:gsub("\n", " "):sub(1, 80)
+  return string.format("[%d] %s — %s", i, annotation_ref(a), comment)
+end
+
+local function parse_entry_idx(entry)
+  return tonumber(entry:match("^%[(%d+)%]"))
 end
 
 local function show_annotations()
@@ -144,16 +164,51 @@ local function show_annotations()
     return
   end
 
-  local items = {}
-  for _, a in ipairs(annotations) do
-    table.insert(items, {
-      filename = a.file,
-      lnum = a.line,
-      text = a.comment,
-    })
+  local entries = {}
+  for i, a in ipairs(annotations) do
+    table.insert(entries, format_entry(i, a))
   end
-  vim.fn.setqflist(items, "r")
-  vim.cmd("copen")
+
+  require("fzf-lua").fzf_exec(entries, {
+    prompt = "Annotations> ",
+    multiprocess = false,
+    fzf_opts = { ["--multi"] = "" },
+    preview = {
+      type = "data",
+      fn = function(items)
+        local entry = items[1]
+        local idx = parse_entry_idx(entry)
+        if not idx or not annotations[idx] then return end
+        local a = annotations[idx]
+        return "// " .. annotation_ref(a) .. "\n\n" .. a.comment
+      end,
+    },
+    actions = {
+      ["default"] = function(selected)
+        local idx = parse_entry_idx(selected[1])
+        if not idx or not annotations[idx] then return end
+        local a = annotations[idx]
+        vim.cmd("edit " .. vim.fn.fnameescape(a.file))
+        vim.api.nvim_win_set_cursor(0, { a.line, 0 })
+        vim.cmd("normal! zz")
+      end,
+      ["ctrl-d"] = function(selected)
+        local to_remove = {}
+        for _, s in ipairs(selected) do
+          local idx = parse_entry_idx(s)
+          if idx then
+            table.insert(to_remove, idx)
+          end
+        end
+        table.sort(to_remove, function(a, b) return a > b end)
+        for _, idx in ipairs(to_remove) do
+          table.remove(annotations, idx)
+        end
+        vim.notify(string.format("Removed %d annotation(s) (%d remaining)", #to_remove, #annotations))
+        save_annotations()
+      end,
+    },
+  })
 end
 
 local function copy_annotations()
@@ -183,6 +238,14 @@ vim.api.nvim_create_autocmd("User", {
 vim.api.nvim_create_autocmd("User", {
   group = group,
   pattern = "PersistenceLoadPost",
+  callback = load_annotations,
+})
+vim.api.nvim_create_autocmd("SessionLoadPost", {
+  group = group,
+  callback = load_annotations,
+})
+vim.api.nvim_create_autocmd("DirChanged", {
+  group = group,
   callback = load_annotations,
 })
 

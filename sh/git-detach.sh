@@ -20,6 +20,9 @@ if $pull; then
   remote=$(git config "branch.${ref}.remote" || echo "origin")
   git fetch "$remote" "$ref"
   git checkout --detach "${remote}/${ref}"
+  # Fast-forward the local ref to match remote so it doesn't go stale.
+  # git branch -f will fail if another worktree has it checked out, which is fine.
+  git branch -f "$ref" "${remote}/${ref}" 2>/dev/null || true
 else
   git checkout --detach "$ref"
 fi

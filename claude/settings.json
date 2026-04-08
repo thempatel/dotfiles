@@ -5,6 +5,11 @@
   "skipDangerousModePermissionPrompt": true,
   "autoUpdates": true,
   "effortLevel": "high",
+  "env": {
+    "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
+    "CLAUDE_CODE_EFFORT_LEVEL": "max",
+    "CLAUDE_CODE_DISABLE_1M_CONTEXT": "1"
+  },
   "hooks": {
     "Stop": [
       {

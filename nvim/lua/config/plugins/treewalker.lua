@@ -5,24 +5,24 @@ return {
   },
   keys = {
     {
-      "H",
+      "<C-h>",
       "<cmd>Treewalker Up<cr>",
-      mode = { "n", "o" },
+      mode = "n",
     },
     {
-      "J",
+      "<C-j>",
       "<cmd>Treewalker Right<cr>",
-      mode = { "n", "o" },
+      mode = "n",
     },
     {
-      "K",
+      "<C-k>",
       "<cmd>Treewalker Left<cr>",
-      mode = { "n", "o" },
+      mode = "n",
     },
     {
-      "L",
+      "<C-l>",
       "<cmd>Treewalker Down<cr>",
-      mode = { "n", "o" },
+      mode = "n",
     },
   },
 }

@@ -24,7 +24,7 @@ M.config = function()
     },
     sort = { "alphanum", "mod" },
     disable = {
-      ft = { "minifiles" },
+      ft = { "minifiles", "text.kulala_ui" },
     },
     notify = false,
     show_help = false,

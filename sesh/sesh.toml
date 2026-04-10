@@ -7,3 +7,12 @@ startup_command = "lg"
 name = "Task List"
 path = "~/"
 startup_command = "tsk"
+
+[[window]]
+name = "editor"
+startup_script = "nvim"
+
+[[wildcard]]
+pattern = "~/src/worktrees/**"
+startup_command = "clear && sbox-agent"
+windows = ["editor"]

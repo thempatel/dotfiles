@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 # Fuzzy find tmux windows by session + process label.
 #   enter  - switch to selected window
 #   ctrl-d - kill selected window(s)

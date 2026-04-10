@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 BREWFILE="$(dirname "$0")/../brew/Brewfile"

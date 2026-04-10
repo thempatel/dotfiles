@@ -117,6 +117,7 @@ if git_root then
 end
 
 vim.g.editorconfig = false
+vim.o.exrc = true
 
 vim.opt.statuscolumn = [[%!v:lua.require'config.utils.ui'.statuscolumn()]]
 

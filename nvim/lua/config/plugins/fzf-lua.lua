@@ -3,8 +3,17 @@ return {
   dependencies = { "nvim-tree/nvim-web-devicons" },
   cmd = "FzfLua",
   keys = {
-    { "<leader>ff", "<cmd>FzfLua lsp_document_symbols<cr>", desc = "LSP Document Symbols" },
-    { "<leader>fF", "<cmd>FzfLua lsp_workspace_symbols<cr>", desc = "LSP Workspace Symbols" },
+    {
+      "<leader>ff",
+      function()
+        require("fzf-lua").files({
+          fd_opts = "--type f --hidden --no-ignore --exclude node_modules --exclude .git --exclude .direnv --exclude dist --exclude third-party",
+        })
+      end,
+      desc = "Find Files",
+    },
+    { "<leader>fo", "<cmd>FzfLua lsp_document_symbols<cr>", desc = "LSP Document Symbols" },
+    { "<leader>ft", "<cmd>FzfLua lsp_workspace_symbols<cr>", desc = "LSP Workspace Symbols" },
     {
       "<leader>fg",
       function()
@@ -41,15 +50,6 @@ return {
     { "<leader>fc", "<cmd>FzfLua command_history<cr>", desc = "Command History" },
     { "<leader>fr", "<cmd>FzfLua resume<cr>", desc = "Resume" },
     { "<leader>fs", "<cmd>FzfLua git_status<cr>", desc = "Git Status" },
-    {
-      "<leader>fp",
-      function()
-        require("fzf-lua").files({
-          fd_opts = "--type f --hidden --no-ignore --exclude node_modules --exclude .git --exclude .direnv --exclude dist --exclude third-party",
-        })
-      end,
-      desc = "Find Files",
-    },
   },
   opts = {
     defaults = {

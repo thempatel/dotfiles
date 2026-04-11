@@ -8,20 +8,9 @@ return {
   },
   keys = {
     {
-      "<leader>yo",
-      mode = { "n", "v" },
-      "<cmd>Yazi<cr>",
-      desc = "Open yazi at the current file",
-    },
-    {
-      "<leader>yw",
+      "<leader>y",
       "<cmd>Yazi cwd<cr>",
       desc = "Open yazi in working directory",
-    },
-    {
-      "<leader>yr",
-      "<cmd>Yazi toggle<cr>",
-      desc = "Resume last yazi session",
     },
   },
   ---@type YaziConfig | {}

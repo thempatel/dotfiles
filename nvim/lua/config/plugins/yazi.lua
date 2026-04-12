@@ -8,9 +8,15 @@ return {
   },
   keys = {
     {
-      "<leader>y",
+      "<leader>yy",
       "<cmd>Yazi cwd<cr>",
       desc = "Open yazi in working directory",
+    },
+    {
+      "<leader>yo",
+      mode = { "n", "v" },
+      "<cmd>Yazi<cr>",
+      desc = "Open yazi at the current file",
     },
   },
   ---@type YaziConfig | {}

@@ -34,9 +34,9 @@ is_worktree_free() {
   local wt_dir="$1"
   local repo_path="$2"
 
-  # No active tmux session using this directory
-  if ! tmux list-sessions -F '#{session_path}' 2>/dev/null | grep -qx "$wt_dir"; then
-    return 0
+  # Active tmux session using this directory — never reuse
+  if tmux list-sessions -F '#{session_path}' 2>/dev/null | grep -qx "$wt_dir"; then
+    return 1
   fi
 
   # Detached HEAD
@@ -114,9 +114,16 @@ git -C "$REPO_PATH" worktree prune
 
 REPO_NAME=$(basename "$REPO_PATH")
 
-# Prompt for branch name
-printf "branch name> "
-read -r BRANCH_NAME
+# Pick an existing branch or type a new one
+BRANCH_NAME=$(
+  git -C "$REPO_PATH" branch --sort=-committerdate --sort=-HEAD \
+    --format='%(color:yellow)%(refname:short) %(color:green)(%(committerdate:relative)) %(color:blue)%(subject)%(color:reset)' \
+    --color=always |
+  fzf --ansi --prompt="branch> " --height=40% --reverse \
+    --print-query --border-label ' Branches ' \
+    --preview "git -C '$REPO_PATH' log --oneline --graph --date=short --color=always --pretty='format:%C(auto)%cd %h%d %s' {1} --" |
+  tail -1 | awk '{print $1}'
+) || true
 if [[ -z "$BRANCH_NAME" ]]; then
   echo "Error: branch name required" >&2
   exit 1

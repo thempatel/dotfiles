@@ -9,8 +9,13 @@ type Stowable = {
   target: string;
 };
 
+type StowableConfig = {
+  source: string;
+  target: string | string[];
+};
+
 type StowConfig = {
-  targets: Stowable[];
+  targets: StowableConfig[];
 };
 
 type RegisteredProject = {
@@ -59,7 +64,33 @@ function loadConfig(configPath: string): StowConfig {
     throw new Error('Config must have a "targets" array');
   }
 
+  for (const entry of config.targets) {
+    if (!entry || typeof entry.source !== 'string') {
+      throw new Error('Each target entry must have a string "source"');
+    }
+
+    const targets = Array.isArray(entry.target) ? entry.target : [entry.target];
+    if (
+      targets.length === 0 ||
+      !targets.every((target) => typeof target === 'string')
+    ) {
+      throw new Error(
+        'Each target entry must have a string "target" or array of strings',
+      );
+    }
+  }
+
   return config;
+}
+
+function expandTargets(config: StowConfig): Stowable[] {
+  return config.targets.flatMap(({ source, target }) => {
+    const targets = Array.isArray(target) ? target : [target];
+    return targets.map((resolvedTarget) => ({
+      source,
+      target: resolvedTarget,
+    }));
+  });
 }
 
 function getDefaultConfigPath(): string {
@@ -263,7 +294,8 @@ async function interactiveMode(
   }
 
   for (const project of selectedProjects) {
-    const stowStates = project.config.targets.map((t) => ({
+    const stowables = expandTargets(project.config);
+    const stowStates = stowables.map((t) => ({
       stowable: t,
       wasStowed: isStowed(project.root, t),
     }));
@@ -274,7 +306,7 @@ async function interactiveMode(
         message: `[${project.name}] Toggle items`,
         choices: stowStates.map(({ stowable, wasStowed }) => ({
           name: `${stowable.source} -> ${stowable.target}`,
-          value: stowable.source,
+          value: `${stowable.source}\0${stowable.target}`,
           checked: wasStowed,
         })),
       });
@@ -286,13 +318,15 @@ async function interactiveMode(
     }
 
     for (const { stowable, wasStowed } of stowStates) {
-      const nowSelected = selected.includes(stowable.source);
+      const nowSelected = selected.includes(
+        `${stowable.source}\0${stowable.target}`,
+      );
 
       if (!wasStowed && nowSelected) {
-        console.log(`Stowing ${stowable.source}...`);
+        console.log(`Stowing ${stowable.source} -> ${stowable.target}...`);
         stow(project.root, stowable.source, stowable.target, false, false);
       } else if (wasStowed && !nowSelected) {
-        console.log(`Unstowing ${stowable.source}...`);
+        console.log(`Unstowing ${stowable.source} -> ${stowable.target}...`);
         stow(project.root, stowable.source, stowable.target, false, true);
       }
     }
@@ -335,7 +369,7 @@ async function main() {
 
       if (opts.yes) {
         for (const project of projects) {
-          for (const t of project.config.targets) {
+          for (const t of expandTargets(project.config)) {
             stow(project.root, t.source, t.target, opts.adopt, opts.delete);
           }
         }

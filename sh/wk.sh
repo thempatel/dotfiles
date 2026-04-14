@@ -27,15 +27,44 @@ default_branch() {
     || git -C "$repo_path" rev-parse --abbrev-ref HEAD
 }
 
+# Resolve the best start point for a new branch.
+default_start_point() {
+  local repo_path="$1"
+  local default
+  default=$(default_branch "$repo_path")
+
+  if git -C "$repo_path" show-ref --verify --quiet "refs/remotes/origin/$default" 2>/dev/null; then
+    echo "origin/$default"
+  else
+    echo "$default"
+  fi
+}
+
+# Keep the default branch fresh when we need to branch from it.
+refresh_default_branch() {
+  local repo_path="$1"
+  local default
+  default=$(default_branch "$repo_path")
+
+  if git -C "$repo_path" show-ref --verify --quiet "refs/remotes/origin/$default" 2>/dev/null; then
+    git -C "$repo_path" fetch origin "$default"
+  fi
+}
+
 # Check if a worktree directory is free for reuse.
-# Free if: detached HEAD, branch merged into default, branch gone from remote,
-# or no active tmux session for the directory.
+# Free means: no tmux session, clean working tree, and either detached HEAD,
+# branch merged into default, or branch gone from remote.
 is_worktree_free() {
   local wt_dir="$1"
   local repo_path="$2"
 
   # Active tmux session using this directory — never reuse
   if tmux list-sessions -F '#{session_path}' 2>/dev/null | grep -qx "$wt_dir"; then
+    return 1
+  fi
+
+  # Don't reuse a dirty worktree in place.
+  if [[ -n "$(git -C "$wt_dir" status --porcelain 2>/dev/null)" ]]; then
     return 1
   fi
 
@@ -86,6 +115,24 @@ find_worktree_dir() {
   return 1
 }
 
+reuse_worktree() {
+  local wt_dir="$1"
+  local repo_path="$2"
+  local branch_name="$3"
+
+  if git -C "$repo_path" show-ref --verify --quiet "refs/heads/$branch_name" 2>/dev/null; then
+    git -C "$wt_dir" switch "$branch_name"
+  elif git -C "$repo_path" show-ref --verify --quiet "refs/remotes/origin/$branch_name" 2>/dev/null; then
+    git -C "$wt_dir" switch --track "origin/$branch_name"
+  else
+    local start_point
+    refresh_default_branch "$repo_path"
+    start_point=$(default_start_point "$repo_path")
+    git -C "$wt_dir" switch --detach "$start_point"
+    git -C "$wt_dir" switch -c "$branch_name"
+  fi
+}
+
 # Parse args
 TMUX_MODE=false
 REPO_PATH=""
@@ -114,38 +161,40 @@ git -C "$REPO_PATH" worktree prune
 
 REPO_NAME=$(basename "$REPO_PATH")
 
-# Pick an existing branch or type a new one
+# Pick an existing branch or type a new one.
+# The query is the source of truth; Tab copies the highlighted branch into it.
 BRANCH_NAME=$(
   git -C "$REPO_PATH" branch --sort=-committerdate --sort=-HEAD \
-    --format='%(color:yellow)%(refname:short) %(color:green)(%(committerdate:relative)) %(color:blue)%(subject)%(color:reset)' \
+    --format=$'%(refname:short)\t%(color:yellow)%(refname:short) %(color:green)(%(committerdate:relative)) %(color:blue)%(subject)%(color:reset)' \
     --color=always |
   fzf --ansi --prompt="branch> " --height=40% --reverse \
-    --print-query --border-label ' Branches ' \
-    --preview "git -C '$REPO_PATH' log --oneline --graph --date=short --color=always --pretty='format:%C(auto)%cd %h%d %s' {1} --" |
-  tail -1 | awk '{print $1}'
+    --border-label ' Branches ' \
+    --header $'Enter: use input  Tab: copy highlighted branch\nType to filter existing branches or enter a new branch name' \
+    --delimiter=$'\t' --with-nth=2 \
+    --bind "tab:transform-query:[[ -n {} ]] && printf %s {1} || printf %s \"\$FZF_QUERY\"" \
+    --bind "enter:become:printf '%s\n' {q}" \
+    --preview "git -C '$REPO_PATH' log --oneline --graph --date=short --color=always --pretty='format:%C(auto)%cd %h%d %s' {1} --"
 ) || true
 if [[ -z "$BRANCH_NAME" ]]; then
   echo "Error: branch name required" >&2
   exit 1
 fi
-
 # Find a reusable worktree or allocate a new one
 mkdir -p "$WORKTREE_ROOT"
 REUSE=false
 WORKTREE_DIR=$(find_worktree_dir "$REPO_NAME" "$REPO_PATH") && REUSE=true
 
-# If reusing, remove the old worktree first
+# Reuse in place when possible; otherwise create a new worktree.
 if $REUSE; then
-  git -C "$REPO_PATH" worktree remove --force "$WORKTREE_DIR" 2>/dev/null || rm -rf "$WORKTREE_DIR"
-fi
-
-# Create worktree: auto-detect if branch exists
-if git -C "$REPO_PATH" show-ref --verify --quiet "refs/heads/$BRANCH_NAME" 2>/dev/null; then
+  reuse_worktree "$WORKTREE_DIR" "$REPO_PATH" "$BRANCH_NAME"
+elif git -C "$REPO_PATH" show-ref --verify --quiet "refs/heads/$BRANCH_NAME" 2>/dev/null; then
   git -C "$REPO_PATH" worktree add "$WORKTREE_DIR" "$BRANCH_NAME"
 elif git -C "$REPO_PATH" show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME" 2>/dev/null; then
   git -C "$REPO_PATH" worktree add "$WORKTREE_DIR" "$BRANCH_NAME"
 else
-  BASE=$(default_branch "$REPO_PATH")
+  BASE=$(default_start_point "$REPO_PATH")
+  refresh_default_branch "$REPO_PATH"
+  BASE=$(default_start_point "$REPO_PATH")
   git -C "$REPO_PATH" worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR" "$BASE"
 fi
 

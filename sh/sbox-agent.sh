@@ -55,24 +55,28 @@ for p in "${OPTIONAL_WRITE_PATHS[@]}"; do
   [[ -d "$p" ]] && WRITE_PATHS+=(-w "$p")
 done
 
-# Config directories for agents that may be invoked (directly or as subprocesses).
-# Claude can spawn codex, so both need write access regardless of which agent is primary.
-CLAUDE_CONFIG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-mkdir -p "$CLAUDE_CONFIG"
-WRITE_PATHS+=(-W "$CLAUDE_CONFIG")
-WRITE_PATHS+=(-W "$HOME/.claude.json")
-
-CODEX_CONFIG="$HOME/.codex"
-mkdir -p "$CODEX_CONFIG"
-WRITE_PATHS+=(-w "$CODEX_CONFIG")
-
 # Agent-specific args
 AGENT_ARGS=()
 case "$AGENT" in
   claude)
+    # Claude can spawn codex, so both need write access.
+    CLAUDE_CONFIG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+    mkdir -p "$CLAUDE_CONFIG"
+    WRITE_PATHS+=(-W "$CLAUDE_CONFIG")
+    WRITE_PATHS+=(-W "$HOME/.claude.json")
+
+    CODEX_CONFIG="$HOME/.codex"
+    mkdir -p "$CODEX_CONFIG"
+    WRITE_PATHS+=(-w "$CODEX_CONFIG")
+
     AGENT_ARGS=(--dangerously-skip-permissions)
     ;;
   codex)
+    CODEX_CONFIG="$HOME/.codex"
+    mkdir -p "$CODEX_CONFIG"
+    WRITE_PATHS+=(-w "$CODEX_CONFIG")
+    WRITE_PATHS+=(-w "$HOME/.agents")
+
     # Disable codex's inner Seatbelt sandbox — nested sandbox-exec is not
     # allowed by macOS, and our outer sbox already provides isolation.
     AGENT_ARGS=(--dangerously-bypass-approvals-and-sandbox)

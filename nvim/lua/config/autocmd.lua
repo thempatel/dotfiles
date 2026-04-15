@@ -1,3 +1,8 @@
+-- Auto-equalize splits on window resize
+vim.api.nvim_create_autocmd("VimResized", {
+  command = "wincmd =",
+})
+
 -- Highlighted Yank
 vim.api.nvim_create_autocmd({ "TextYankPost" }, {
   callback = function()

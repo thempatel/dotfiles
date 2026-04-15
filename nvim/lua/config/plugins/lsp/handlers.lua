@@ -1,6 +1,8 @@
 local M = {}
 
-M.on_attach = function(client, _bufnr)
+M.on_attach = function(client, bufnr)
+  vim.keymap.set("n", "ge", vim.diagnostic.open_float, { silent = true, buffer = bufnr, desc = "Show Diagnostic" })
+
   if client.name == "lua_ls" then
     client.server_capabilities.documentFormattingProvider = false
     client.server_capabilities.documentRangeFormattingProvider = false

@@ -81,7 +81,7 @@ M.config = function()
     { "gO", hidden = true },
     { "gx", hidden = true },
     { "gY", hidden = true },
-    { "ge", hidden = true },
+    { "ge", desc = "Show Diagnostic", icon = "󰅙 " },
     { "gh", hidden = true },
     { "gH", hidden = true },
     { "gra", hidden = true },

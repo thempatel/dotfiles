@@ -15,8 +15,8 @@ usage() {
 # Pick a project via fzf (basenames from CODE_ROOT, non-recursive)
 pick_project() {
   local selected
-  selected=$(ls -1 "$CODE_ROOT" | fzf --prompt="project> " --height=40% --reverse) || exit 0
-  [[ -n "$selected" ]] || exit 0
+  selected=$(ls -1 "$CODE_ROOT" | fzf --prompt="project> " --height=40% --reverse) || return 130
+  [[ -n "$selected" ]] || return 130
   echo "$CODE_ROOT/$selected"
 }
 
@@ -49,6 +49,66 @@ refresh_default_branch() {
   if git -C "$repo_path" show-ref --verify --quiet "refs/remotes/origin/$default" 2>/dev/null; then
     git -C "$repo_path" fetch origin "$default"
   fi
+}
+
+# Print branch candidates for fzf.
+# Local branches are listed first; remote branches are only included when
+# there is no local branch with the same short name.
+list_branch_candidates() {
+  local repo_path="$1"
+  local remote_branch_refs
+  remote_branch_refs=$(
+    git -C "$repo_path" branch -r --sort=-committerdate --format='%(refname:short)' |
+      sed '/HEAD ->/d' |
+      head -n 100
+  )
+  local remote_only_branch_names
+  remote_only_branch_names=$'\n'"$(
+    comm -13 \
+      <(git -C "$repo_path" branch --format='%(refname:short)' | sort) \
+      <(printf '%s\n' "$remote_branch_refs" | sed 's#^[^/]*/##' | sort -u)
+  )"$'\n'
+
+  while IFS= read -r branch_name; do
+    [[ -n "$branch_name" ]] || continue
+    printf '%s\t%s\n' "$branch_name" "$branch_name"
+  done < <(
+    git -C "$repo_path" branch --sort=-committerdate --sort=-HEAD --format='%(refname:short)'
+  )
+
+  while IFS= read -r remote_ref; do
+    [[ -n "$remote_ref" ]] || continue
+
+    local branch_name="${remote_ref#*/}"
+    [[ "$remote_only_branch_names" == *$'\n'"$branch_name"$'\n'* ]] || continue
+
+    printf '%s\t%s\n' "$branch_name" "$remote_ref"
+  done <<< "$remote_branch_refs"
+}
+
+resolve_remote_branch_ref() {
+  local repo_path="$1"
+  local branch_name="$2"
+
+  if git -C "$repo_path" show-ref --verify --quiet "refs/remotes/origin/$branch_name" 2>/dev/null; then
+    echo "origin/$branch_name"
+    return 0
+  fi
+
+  local matches=()
+  while IFS= read -r remote_ref; do
+    [[ -n "$remote_ref" ]] || continue
+    [[ "$remote_ref" == */HEAD ]] && continue
+    [[ "${remote_ref#*/}" == "$branch_name" ]] || continue
+    matches+=("$remote_ref")
+  done < <(git -C "$repo_path" for-each-ref refs/remotes --format='%(refname:short)')
+
+  if (( ${#matches[@]} == 1 )); then
+    echo "${matches[0]}"
+    return 0
+  fi
+
+  return 1
 }
 
 # Check if a worktree directory is free for reuse.
@@ -119,11 +179,13 @@ reuse_worktree() {
   local wt_dir="$1"
   local repo_path="$2"
   local branch_name="$3"
+  local branch_source="$4"
 
   if git -C "$repo_path" show-ref --verify --quiet "refs/heads/$branch_name" 2>/dev/null; then
     git -C "$wt_dir" switch "$branch_name"
-  elif git -C "$repo_path" show-ref --verify --quiet "refs/remotes/origin/$branch_name" 2>/dev/null; then
-    git -C "$wt_dir" switch --track "origin/$branch_name"
+  elif [[ -n "$branch_source" ]]; then
+    git -C "$wt_dir" switch -c "$branch_name" "$branch_source"
+    git -C "$wt_dir" branch --set-upstream-to "$branch_source" "$branch_name"
   else
     local start_point
     refresh_default_branch "$repo_path"
@@ -147,7 +209,7 @@ done
 
 # Select project
 if [[ -z "$REPO_PATH" ]]; then
-  REPO_PATH=$(pick_project)
+  REPO_PATH=$(pick_project) || exit 0
 fi
 
 # Validate it's a git repo
@@ -163,22 +225,60 @@ REPO_NAME=$(basename "$REPO_PATH")
 
 # Pick an existing branch or type a new one.
 # The query is the source of truth; Tab copies the highlighted branch into it.
-BRANCH_NAME=$(
-  git -C "$REPO_PATH" branch --sort=-committerdate --sort=-HEAD \
-    --format=$'%(refname:short)\t%(color:yellow)%(refname:short) %(color:green)(%(committerdate:relative)) %(color:blue)%(subject)%(color:reset)' \
-    --color=always |
-  fzf --ansi --prompt="branch> " --height=40% --reverse \
+BRANCH_CANDIDATES=$(list_branch_candidates "$REPO_PATH")
+
+FZF_OUTPUT=$(
+  printf '%s\n' "$BRANCH_CANDIDATES" |
+  fzf --prompt="branch> " --height=40% --reverse \
     --border-label ' Branches ' \
     --header $'Enter: use input  Tab: copy highlighted branch\nType to filter existing branches or enter a new branch name' \
-    --delimiter=$'\t' --with-nth=2 \
+    --delimiter=$'\t' --with-nth=1 \
     --bind "tab:transform-query:[[ -n {} ]] && printf %s {1} || printf %s \"\$FZF_QUERY\"" \
-    --bind "enter:become:printf '%s\n' {q}" \
-    --preview "git -C '$REPO_PATH' log --oneline --graph --date=short --color=always --pretty='format:%C(auto)%cd %h%d %s' {1} --"
-) || true
+    --expect=enter \
+    --print-query
+)
+FZF_STATUS=$?
+
+if [[ $FZF_STATUS -ne 0 ]]; then
+  if [[ $FZF_STATUS -eq 130 ]]; then
+    exit 0
+  fi
+
+  echo "Error: fzf exited with status $FZF_STATUS" >&2
+  exit "$FZF_STATUS"
+fi
+
+FZF_QUERY=""
+FZF_KEY=""
+FZF_SELECTION=""
+{
+  IFS= read -r FZF_QUERY
+  IFS= read -r FZF_KEY
+  IFS= read -r FZF_SELECTION
+} <<< "$FZF_OUTPUT"
+
+if [[ "$FZF_KEY" != "enter" && -z "$FZF_SELECTION" ]]; then
+  FZF_SELECTION="$FZF_KEY"
+  FZF_KEY=""
+fi
+
+if [[ -n "$FZF_SELECTION" ]]; then
+  IFS=$'\t' read -r BRANCH_NAME BRANCH_SOURCE <<< "$FZF_SELECTION"
+else
+  BRANCH_NAME="$FZF_QUERY"
+  BRANCH_SOURCE=""
+fi
+
 if [[ -z "$BRANCH_NAME" ]]; then
   echo "Error: branch name required" >&2
   exit 1
 fi
+
+if [[ -z "$BRANCH_SOURCE" ]] \
+  && ! git -C "$REPO_PATH" show-ref --verify --quiet "refs/heads/$BRANCH_NAME" 2>/dev/null; then
+  BRANCH_SOURCE=$(resolve_remote_branch_ref "$REPO_PATH" "$BRANCH_NAME" || true)
+fi
+
 # Find a reusable worktree or allocate a new one
 mkdir -p "$WORKTREE_ROOT"
 REUSE=false
@@ -186,11 +286,12 @@ WORKTREE_DIR=$(find_worktree_dir "$REPO_NAME" "$REPO_PATH") && REUSE=true
 
 # Reuse in place when possible; otherwise create a new worktree.
 if $REUSE; then
-  reuse_worktree "$WORKTREE_DIR" "$REPO_PATH" "$BRANCH_NAME"
+  reuse_worktree "$WORKTREE_DIR" "$REPO_PATH" "$BRANCH_NAME" "$BRANCH_SOURCE"
 elif git -C "$REPO_PATH" show-ref --verify --quiet "refs/heads/$BRANCH_NAME" 2>/dev/null; then
   git -C "$REPO_PATH" worktree add "$WORKTREE_DIR" "$BRANCH_NAME"
-elif git -C "$REPO_PATH" show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME" 2>/dev/null; then
-  git -C "$REPO_PATH" worktree add "$WORKTREE_DIR" "$BRANCH_NAME"
+elif [[ -n "$BRANCH_SOURCE" ]]; then
+  git -C "$REPO_PATH" worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR" "$BRANCH_SOURCE"
+  git -C "$WORKTREE_DIR" branch --set-upstream-to "$BRANCH_SOURCE" "$BRANCH_NAME"
 else
   BASE=$(default_start_point "$REPO_PATH")
   refresh_default_branch "$REPO_PATH"

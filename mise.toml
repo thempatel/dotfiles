@@ -1,6 +1,11 @@
 [env]
 MISE_PIN = "1"
+MISE_GO_SET_GOPATH=0
+MISE_GO_SET_GOROOT=0
+MISE_GO_SET_GOBIN=0
+
 _.path = ["{{config_root}}/lsp/bin"]
+
 
 [tools]
 "aqua:junegunn/fzf/fzf-tmux" = "v0.70.0"

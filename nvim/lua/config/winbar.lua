@@ -61,7 +61,7 @@ function M.render()
             end
 
             local file_name = vim.fn.fnamemodify(segment, ":t")
-            local extension = vim.fn.expand("#" .. 0 .. ":e")
+            local extension = vim.fn.fnamemodify(file_name, ":e")
             local icon, devicon_color = require("nvim-web-devicons").get_icon_color(file_name, extension)
             vim.api.nvim_set_hl(0, "WinbarFileIcon", { fg = devicon_color, bg = "NONE" })
             if modified ~= "" then

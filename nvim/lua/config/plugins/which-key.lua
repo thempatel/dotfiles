@@ -71,6 +71,9 @@ M.config = function()
     { "<leader>pdr", "<C-w>l<cmd>q<cr>", desc = "Close Right", nowait = false, remap = false },
     { "<leader>pdl", "<C-w>h<cmd>q<cr>", desc = "Close Left", nowait = false, remap = false },
     { "<leader>t", "<cmd>terminal<cr>", desc = "Terminal", icon = " ", nowait = false, remap = false },
+    { "<leader>w", group = "Windows", icon = " ", nowait = false, remap = false },
+    { "<leader>ww", "<C-w>w", desc = "Next Window", nowait = false, remap = false },
+    { "<leader>wp", "<C-w>p", desc = "Previous Window", nowait = false, remap = false },
     { "<leader>y", group = "Yazi", icon = "󰇥 ", nowait = false, remap = false },
   }, opts)
 

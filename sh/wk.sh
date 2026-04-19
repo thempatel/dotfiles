@@ -111,6 +111,17 @@ resolve_remote_branch_ref() {
   return 1
 }
 
+# Find an existing worktree that already has the given branch checked out.
+find_worktree_for_branch() {
+  local repo_path="$1"
+  local branch_name="$2"
+
+  git -C "$repo_path" worktree list --porcelain | awk -v branch="refs/heads/$branch_name" '
+    /^worktree / { wt = substr($0, 10) }
+    /^branch / && $2 == branch { print wt; exit }
+  '
+}
+
 # Check if a worktree directory is free for reuse.
 # Free means: no tmux session, clean working tree, and either detached HEAD,
 # branch merged into default, or branch gone from remote.
@@ -279,24 +290,31 @@ if [[ -z "$BRANCH_SOURCE" ]] \
   BRANCH_SOURCE=$(resolve_remote_branch_ref "$REPO_PATH" "$BRANCH_NAME" || true)
 fi
 
-# Find a reusable worktree or allocate a new one
+# If the branch is already checked out in an existing worktree, use it.
+# Otherwise find a reusable worktree or allocate a new one.
 mkdir -p "$WORKTREE_ROOT"
-REUSE=false
-WORKTREE_DIR=$(find_worktree_dir "$REPO_NAME" "$REPO_PATH") && REUSE=true
+WORKTREE_DIR=$(find_worktree_for_branch "$REPO_PATH" "$BRANCH_NAME")
 
-# Reuse in place when possible; otherwise create a new worktree.
-if $REUSE; then
-  reuse_worktree "$WORKTREE_DIR" "$REPO_PATH" "$BRANCH_NAME" "$BRANCH_SOURCE"
-elif git -C "$REPO_PATH" show-ref --verify --quiet "refs/heads/$BRANCH_NAME" 2>/dev/null; then
-  git -C "$REPO_PATH" worktree add "$WORKTREE_DIR" "$BRANCH_NAME"
-elif [[ -n "$BRANCH_SOURCE" ]]; then
-  git -C "$REPO_PATH" worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR" "$BRANCH_SOURCE"
-  git -C "$WORKTREE_DIR" branch --set-upstream-to "$BRANCH_SOURCE" "$BRANCH_NAME"
+if [[ -n "$WORKTREE_DIR" ]]; then
+  :
 else
-  BASE=$(default_start_point "$REPO_PATH")
-  refresh_default_branch "$REPO_PATH"
-  BASE=$(default_start_point "$REPO_PATH")
-  git -C "$REPO_PATH" worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR" "$BASE"
+  REUSE=false
+  WORKTREE_DIR=$(find_worktree_dir "$REPO_NAME" "$REPO_PATH") && REUSE=true
+
+  # Reuse in place when possible; otherwise create a new worktree.
+  if $REUSE; then
+    reuse_worktree "$WORKTREE_DIR" "$REPO_PATH" "$BRANCH_NAME" "$BRANCH_SOURCE"
+  elif git -C "$REPO_PATH" show-ref --verify --quiet "refs/heads/$BRANCH_NAME" 2>/dev/null; then
+    git -C "$REPO_PATH" worktree add "$WORKTREE_DIR" "$BRANCH_NAME"
+  elif [[ -n "$BRANCH_SOURCE" ]]; then
+    git -C "$REPO_PATH" worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR" "$BRANCH_SOURCE"
+    git -C "$WORKTREE_DIR" branch --set-upstream-to "$BRANCH_SOURCE" "$BRANCH_NAME"
+  else
+    BASE=$(default_start_point "$REPO_PATH")
+    refresh_default_branch "$REPO_PATH"
+    BASE=$(default_start_point "$REPO_PATH")
+    git -C "$REPO_PATH" worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR" "$BASE"
+  fi
 fi
 
 # Allow direnv if the worktree has an .envrc

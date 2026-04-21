@@ -238,6 +238,7 @@ REPO_NAME=$(basename "$REPO_PATH")
 # The query is the source of truth; Tab copies the highlighted branch into it.
 BRANCH_CANDIDATES=$(list_branch_candidates "$REPO_PATH")
 
+FZF_STATUS=0
 FZF_OUTPUT=$(
   printf '%s\n' "$BRANCH_CANDIDATES" |
   fzf --prompt="branch> " --height=40% --reverse \
@@ -247,10 +248,9 @@ FZF_OUTPUT=$(
     --bind "tab:transform-query:[[ -n {} ]] && printf %s {1} || printf %s \"\$FZF_QUERY\"" \
     --expect=enter \
     --print-query
-)
-FZF_STATUS=$?
+) || FZF_STATUS=$?
 
-if [[ $FZF_STATUS -ne 0 ]]; then
+if [[ $FZF_STATUS -ne 0 && $FZF_STATUS -ne 1 ]]; then
   if [[ $FZF_STATUS -eq 130 ]]; then
     exit 0
   fi

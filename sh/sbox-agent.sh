@@ -3,11 +3,12 @@
 # Run a coding agent in a macOS sandbox using sbox (sandbox-exec wrapper).
 # This uses the native macOS Seatbelt sandbox instead of containers.
 #
-# Usage: sbox-agent [-w write_path] [-W write_prefix_path] [-d deny_path]... [agent] [agent-args...]
+# Usage: sbox-agent [-w write_path] [-W write_prefix_path] [-d deny_path]... [--] [agent] [agent-args...]
 #   -w path: allow write access to path (repeatable)
 #   -W path: allow write access to path and any path sharing its prefix (repeatable)
 #   -d path: deny read/write access to path (repeatable)
 #   agent: claude (default), codex, etc.
+#   Use -- before agent args that start with - to prevent them being parsed as sbox-agent flags.
 
 set -e
 
@@ -22,8 +23,13 @@ while getopts "w:W:d:" opt; do
 done
 shift $((OPTIND - 1))
 
-AGENT="${1:-claude}"
-shift 2>/dev/null || true
+KNOWN_AGENTS="claude codex"
+if [[ -n "$1" && " $KNOWN_AGENTS " == *" $1 "* ]]; then
+  AGENT="$1"
+  shift
+else
+  AGENT="claude"
+fi
 
 # Allow writes to the current working directory
 WRITE_PATHS=(-w "$(pwd)")

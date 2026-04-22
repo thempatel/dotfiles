@@ -49,6 +49,7 @@ return {
     { "<leader>fb", "<cmd>FzfLua buffers<cr>", desc = "Buffers" },
     { "<leader>fc", "<cmd>FzfLua command_history<cr>", desc = "Command History" },
     { "<leader>fr", "<cmd>FzfLua resume<cr>", desc = "Resume" },
+    { "<leader>fd", "<cmd>FzfLua treesitter<cr>", desc = "Treesitter Symbols" },
     { "<leader>fs", "<cmd>FzfLua git_status<cr>", desc = "Git Status" },
   },
   opts = {

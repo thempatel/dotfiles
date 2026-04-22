@@ -122,64 +122,37 @@ find_worktree_for_branch() {
   '
 }
 
-# Check if a worktree directory is free for reuse.
-# Free means: no tmux session, clean working tree, and either detached HEAD,
-# branch merged into default, or branch gone from remote.
 is_worktree_free() {
   local wt_dir="$1"
-  local repo_path="$2"
 
-  # Active tmux session using this directory — never reuse
   if tmux list-sessions -F '#{session_path}' 2>/dev/null | grep -qx "$wt_dir"; then
     return 1
   fi
 
-  # Don't reuse a dirty worktree in place.
-  if [[ -n "$(git -C "$wt_dir" status --porcelain 2>/dev/null)" ]]; then
+  if [[ -n "$(git -C "$wt_dir" status --porcelain -uno 2>/dev/null)" ]]; then
     return 1
   fi
 
-  # Detached HEAD
-  if [[ "$(git -C "$wt_dir" rev-parse --abbrev-ref HEAD 2>/dev/null)" == "HEAD" ]]; then
-    return 0
-  fi
-
-  local branch
-  branch=$(git -C "$wt_dir" rev-parse --abbrev-ref HEAD 2>/dev/null) || return 0
-
-  # Branch doesn't exist on remote
-  if ! git -C "$repo_path" show-ref --verify --quiet "refs/remotes/origin/$branch" 2>/dev/null; then
-    return 0
-  fi
-
-  # Branch has been merged into default branch
-  local default
-  default=$(default_branch "$repo_path")
-  if git -C "$repo_path" merge-base --is-ancestor "refs/heads/$branch" "refs/heads/$default" 2>/dev/null; then
-    return 0
-  fi
-
-  return 1
+  return 0
 }
 
 # Find a reusable worktree or the next wk-N suffix for a repo
 find_worktree_dir() {
   local repo_name="$1"
-  local repo_path="$2"
   local max=0
 
   if [[ -d "$WORKTREE_ROOT" ]]; then
-    for dir in "$WORKTREE_ROOT"/"${repo_name}"-wk-*; do
+    while IFS= read -r dir; do
       [[ -d "$dir" ]] || continue
       local n="${dir##*-wk-}"
       [[ "$n" =~ ^[0-9]+$ ]] || continue
       (( n > max )) && max=$n
 
-      if is_worktree_free "$dir" "$repo_path"; then
+      if is_worktree_free "$dir"; then
         echo "$dir"
         return 0
       fi
-    done
+    done < <(printf '%s\n' "$WORKTREE_ROOT"/"${repo_name}"-wk-* | sort -V)
   fi
 
   echo "$WORKTREE_ROOT/${repo_name}-wk-$(( max + 1 ))"
@@ -206,121 +179,135 @@ reuse_worktree() {
   fi
 }
 
-# Parse args
-TMUX_MODE=false
-REPO_PATH=""
+# Interactive branch picker. Prints "BRANCH_NAME\tBRANCH_SOURCE" to stdout.
+pick_branch() {
+  local repo_path="$1"
+  local branch_candidates
+  branch_candidates=$(list_branch_candidates "$repo_path")
 
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --tmux) TMUX_MODE=true; shift ;;
-    -h|--help) usage ;;
-    *) REPO_PATH="$1"; shift ;;
-  esac
-done
+  local fzf_status=0
+  local fzf_output
+  fzf_output=$(
+    printf '%s\n' "$branch_candidates" |
+    fzf --prompt="branch> " --height=40% --reverse \
+      --border-label ' Branches ' \
+      --header $'Enter: use input  Tab: copy highlighted branch\nType to filter existing branches or enter a new branch name' \
+      --delimiter=$'\t' --with-nth=1 \
+      --bind "tab:transform-query:[[ -n {} ]] && printf %s {1} || printf %s \"\$FZF_QUERY\"" \
+      --expect=enter \
+      --print-query
+  ) || fzf_status=$?
 
-# Select project
-if [[ -z "$REPO_PATH" ]]; then
-  REPO_PATH=$(pick_project) || exit 0
-fi
-
-# Validate it's a git repo
-if ! git -C "$REPO_PATH" rev-parse --git-dir &>/dev/null; then
-  echo "Error: $REPO_PATH is not a git repository" >&2
-  exit 1
-fi
-
-# Clean up stale worktree entries (directories deleted outside of git)
-git -C "$REPO_PATH" worktree prune
-
-REPO_NAME=$(basename "$REPO_PATH")
-
-# Pick an existing branch or type a new one.
-# The query is the source of truth; Tab copies the highlighted branch into it.
-BRANCH_CANDIDATES=$(list_branch_candidates "$REPO_PATH")
-
-FZF_STATUS=0
-FZF_OUTPUT=$(
-  printf '%s\n' "$BRANCH_CANDIDATES" |
-  fzf --prompt="branch> " --height=40% --reverse \
-    --border-label ' Branches ' \
-    --header $'Enter: use input  Tab: copy highlighted branch\nType to filter existing branches or enter a new branch name' \
-    --delimiter=$'\t' --with-nth=1 \
-    --bind "tab:transform-query:[[ -n {} ]] && printf %s {1} || printf %s \"\$FZF_QUERY\"" \
-    --expect=enter \
-    --print-query
-) || FZF_STATUS=$?
-
-if [[ $FZF_STATUS -ne 0 && $FZF_STATUS -ne 1 ]]; then
-  if [[ $FZF_STATUS -eq 130 ]]; then
-    exit 0
+  if [[ $fzf_status -ne 0 && $fzf_status -ne 1 ]]; then
+    return "$fzf_status"
   fi
 
-  echo "Error: fzf exited with status $FZF_STATUS" >&2
-  exit "$FZF_STATUS"
-fi
+  local fzf_query="" fzf_key="" fzf_selection=""
+  {
+    IFS= read -r fzf_query
+    IFS= read -r fzf_key
+    IFS= read -r fzf_selection
+  } <<< "$fzf_output"
 
-FZF_QUERY=""
-FZF_KEY=""
-FZF_SELECTION=""
-{
-  IFS= read -r FZF_QUERY
-  IFS= read -r FZF_KEY
-  IFS= read -r FZF_SELECTION
-} <<< "$FZF_OUTPUT"
+  if [[ "$fzf_key" != "enter" && -z "$fzf_selection" ]]; then
+    fzf_selection="$fzf_key"
+  fi
 
-if [[ "$FZF_KEY" != "enter" && -z "$FZF_SELECTION" ]]; then
-  FZF_SELECTION="$FZF_KEY"
-  FZF_KEY=""
-fi
-
-if [[ -n "$FZF_SELECTION" ]]; then
-  IFS=$'\t' read -r BRANCH_NAME BRANCH_SOURCE <<< "$FZF_SELECTION"
-else
-  BRANCH_NAME="$FZF_QUERY"
-  BRANCH_SOURCE=""
-fi
-
-if [[ -z "$BRANCH_NAME" ]]; then
-  echo "Error: branch name required" >&2
-  exit 1
-fi
-
-if [[ -z "$BRANCH_SOURCE" ]] \
-  && ! git -C "$REPO_PATH" show-ref --verify --quiet "refs/heads/$BRANCH_NAME" 2>/dev/null; then
-  BRANCH_SOURCE=$(resolve_remote_branch_ref "$REPO_PATH" "$BRANCH_NAME" || true)
-fi
-
-# If the branch is already checked out in an existing worktree, use it.
-# Otherwise find a reusable worktree or allocate a new one.
-mkdir -p "$WORKTREE_ROOT"
-WORKTREE_DIR=$(find_worktree_for_branch "$REPO_PATH" "$BRANCH_NAME")
-
-if [[ -n "$WORKTREE_DIR" ]]; then
-  :
-else
-  REUSE=false
-  WORKTREE_DIR=$(find_worktree_dir "$REPO_NAME" "$REPO_PATH") && REUSE=true
-
-  # Reuse in place when possible; otherwise create a new worktree.
-  if $REUSE; then
-    reuse_worktree "$WORKTREE_DIR" "$REPO_PATH" "$BRANCH_NAME" "$BRANCH_SOURCE"
-  elif git -C "$REPO_PATH" show-ref --verify --quiet "refs/heads/$BRANCH_NAME" 2>/dev/null; then
-    git -C "$REPO_PATH" worktree add "$WORKTREE_DIR" "$BRANCH_NAME"
-  elif [[ -n "$BRANCH_SOURCE" ]]; then
-    git -C "$REPO_PATH" worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR" "$BRANCH_SOURCE"
-    git -C "$WORKTREE_DIR" branch --set-upstream-to "$BRANCH_SOURCE" "$BRANCH_NAME"
+  local branch_name="" branch_source=""
+  if [[ "$fzf_key" == "enter" ]]; then
+    branch_name="$fzf_query"
+  elif [[ -n "$fzf_selection" ]]; then
+    IFS=$'\t' read -r branch_name branch_source <<< "$fzf_selection"
   else
-    BASE=$(default_start_point "$REPO_PATH")
-    refresh_default_branch "$REPO_PATH"
-    BASE=$(default_start_point "$REPO_PATH")
-    git -C "$REPO_PATH" worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR" "$BASE"
+    branch_name="$fzf_query"
   fi
-fi
 
-# Allow direnv if the worktree has an .envrc
-if [[ -f "$WORKTREE_DIR/.envrc" ]]; then
-  direnv allow "$WORKTREE_DIR/.envrc"
-fi
+  if [[ -z "$branch_name" ]]; then
+    echo "Error: branch name required" >&2
+    return 1
+  fi
 
-# Connect via sesh (wildcard config handles window layout)
-sesh connect "$WORKTREE_DIR"
+  if [[ -z "$branch_source" ]] \
+    && ! git -C "$repo_path" show-ref --verify --quiet "refs/heads/$branch_name" 2>/dev/null; then
+    branch_source=$(resolve_remote_branch_ref "$repo_path" "$branch_name" || true)
+  fi
+
+  printf '%s\t%s\n' "$branch_name" "$branch_source"
+}
+
+# Ensure a worktree exists for the given branch and print its path.
+ensure_worktree() {
+  local repo_path="$1"
+  local branch_name="$2"
+  local branch_source="$3"
+  local repo_name
+  repo_name=$(basename "$repo_path")
+
+  mkdir -p "$WORKTREE_ROOT"
+  local wt_dir
+  wt_dir=$(find_worktree_for_branch "$repo_path" "$branch_name")
+
+  if [[ -z "$wt_dir" ]]; then
+    local reuse=false
+    wt_dir=$(find_worktree_dir "$repo_name") && reuse=true
+
+    if $reuse; then
+      reuse_worktree "$wt_dir" "$repo_path" "$branch_name" "$branch_source" >&2
+    elif git -C "$repo_path" show-ref --verify --quiet "refs/heads/$branch_name" 2>/dev/null; then
+      git -C "$repo_path" worktree add "$wt_dir" "$branch_name" >&2
+    elif [[ -n "$branch_source" ]]; then
+      git -C "$repo_path" worktree add -b "$branch_name" "$wt_dir" "$branch_source" >&2
+      git -C "$wt_dir" branch --set-upstream-to "$branch_source" "$branch_name" >&2
+    else
+      local base
+      refresh_default_branch "$repo_path"
+      base=$(default_start_point "$repo_path")
+      git -C "$repo_path" worktree add -b "$branch_name" "$wt_dir" "$base" >&2
+    fi
+  fi
+
+  echo "$wt_dir"
+}
+
+main() {
+  local TMUX_MODE=false
+  local REPO_PATH=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --tmux) TMUX_MODE=true; shift ;;
+      -h|--help) usage ;;
+      *) REPO_PATH="$1"; shift ;;
+    esac
+  done
+
+  if [[ -z "$REPO_PATH" ]]; then
+    REPO_PATH=$(pick_project) || exit 0
+  fi
+
+  if ! git -C "$REPO_PATH" rev-parse --git-dir &>/dev/null; then
+    echo "Error: $REPO_PATH is not a git repository" >&2
+    exit 1
+  fi
+
+  git -C "$REPO_PATH" worktree prune
+
+  local branch_line
+  branch_line=$(pick_branch "$REPO_PATH") || exit 0
+
+  local BRANCH_NAME BRANCH_SOURCE
+  IFS=$'\t' read -r BRANCH_NAME BRANCH_SOURCE <<< "$branch_line"
+
+  local WORKTREE_DIR
+  WORKTREE_DIR=$(ensure_worktree "$REPO_PATH" "$BRANCH_NAME" "$BRANCH_SOURCE")
+
+  if [[ -f "$WORKTREE_DIR/.envrc" ]]; then
+    direnv allow "$WORKTREE_DIR/.envrc"
+  fi
+
+  sesh connect "$WORKTREE_DIR"
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi

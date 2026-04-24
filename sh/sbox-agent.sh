@@ -76,6 +76,13 @@ case "$AGENT" in
     WRITE_PATHS+=(-w "$CODEX_CONFIG")
 
     AGENT_ARGS=(--dangerously-skip-permissions)
+
+    CC_TOOLSHED="${CODE_ROOT:-$HOME/src}/cc-toolshed"
+    if [[ -d "$CC_TOOLSHED" ]]; then
+      WRITE_PATHS+=(-w "$CC_TOOLSHED")
+      AGENT_ARGS+=(--add-dir "$CC_TOOLSHED/memory" --plugin-dir "$CC_TOOLSHED")
+      export CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1
+    fi
     ;;
   codex)
     CODEX_CONFIG="$HOME/.codex"

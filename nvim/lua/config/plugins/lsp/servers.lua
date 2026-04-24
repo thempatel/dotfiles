@@ -4,6 +4,7 @@ M.setup = function()
   local handlers = require("config.plugins.lsp.handlers")
 
   vim.lsp.enable("kulala_ls") -- setup/02-lsp.sh
+  vim.lsp.enable("denols")
   vim.lsp.enable("tsgo") -- setup/02-lsp.sh
   vim.lsp.enable("ty") -- mise
   vim.lsp.enable("rust_analyzer") -- mise

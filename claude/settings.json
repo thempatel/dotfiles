@@ -4,12 +4,6 @@
   "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true,
   "autoUpdates": true,
-  "model": "claude-opus-4-6",
-  "env": {
-    "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
-    "CLAUDE_CODE_EFFORT_LEVEL": "max",
-    "MAX_THINKING_TOKENS": "128000"
-  },
   "hooks": {
     "Stop": [
       {

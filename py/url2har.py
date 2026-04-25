@@ -95,7 +95,7 @@ def main(
 
     with sync_playwright() as p:
         args = ["--auto-open-devtools-for-tabs"] if devtools else []
-        browser = p.chromium.launch(headless=headless, args=args)
+        browser = p.chromium.launch(channel="chrome", headless=headless, args=args)
         context = browser.new_context(record_har_path=str(har_path))
         page = context.new_page()
         page.goto(url)

@@ -233,33 +233,72 @@ def _dedup_slug(slug: str, used: set[str]) -> str:
     return candidate
 
 
-def write_tree(section: Section, output_dir: Path) -> None:
+@dataclass
+class _Written:
+    """A file or directory that was emitted, used to build TOCs in index.md."""
+
+    slug: str
+    heading: str
+    is_dir: bool
+    children: list["_Written"] = field(default_factory=list)
+
+
+def _format_index(nodes: list[_Written], path_prefix: str, depth: int) -> list[str]:
+    lines: list[str] = []
+    indent = "  " * depth
+    for node in nodes:
+        link = (
+            f"{path_prefix}{node.slug}/index.md"
+            if node.is_dir
+            else f"{path_prefix}{node.slug}.md"
+        )
+        lines.append(f"{indent}- [{node.heading}]({link})")
+        if node.children:
+            lines.extend(
+                _format_index(node.children, f"{path_prefix}{node.slug}/", depth + 1)
+            )
+    return lines
+
+
+def write_tree(section: Section, output_dir: Path) -> list[_Written]:
+    """Write the section tree to disk. Each directory gets an index.md
+    containing its heading, preamble, and a nested TOC of descendants."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    used_slugs: set[str] = {"_index", "_index.md"}
+    used_slugs: set[str] = {"index", "index.md"}
 
-    # Write this section's own content (preamble before child headings)
-    content = _strip_blank_edges(section.content)
-    if content:
-        lines: list[str] = []
-        if section.heading:
-            lines.append(f"# {section.heading}")
-            lines.append("")
-        lines.extend(content)
-        (output_dir / "_index.md").write_text("\n".join(lines) + "\n")
-
+    written: list[_Written] = []
     for child in section.children:
         slug = _dedup_slug(_slugify(child.heading), used_slugs)
         if child.children:
-            # Non-leaf: recurse into a subdirectory
-            write_tree(child, output_dir / slug)
+            sub = write_tree(child, output_dir / slug)
+            written.append(_Written(slug, child.heading, is_dir=True, children=sub))
         else:
-            # Leaf: write as a single file
             lines = [f"# {child.heading}"]
             body = _strip_blank_edges(child.content)
             if body:
                 lines.append("")
                 lines.extend(body)
             (output_dir / f"{slug}.md").write_text("\n".join(lines) + "\n")
+            written.append(_Written(slug, child.heading, is_dir=False))
+
+    content = _strip_blank_edges(section.content)
+    index_lines: list[str] = []
+    if section.heading:
+        index_lines.append(f"# {section.heading}")
+    elif written:
+        index_lines.append("# Index")
+    if content:
+        if index_lines:
+            index_lines.append("")
+        index_lines.extend(content)
+    if written:
+        if index_lines:
+            index_lines.append("")
+        index_lines.extend(_format_index(written, "", 0))
+    if index_lines:
+        (output_dir / "index.md").write_text("\n".join(index_lines) + "\n")
+
+    return written
 
 
 # ---------------------------------------------------------------------------
@@ -315,6 +354,17 @@ def split(
 
     root = parse_markdown(file.read_text())
     collapse_small(root, min_lines)
+
+    # If the document has a single wrapping heading (e.g. `# Guide` at the top
+    # of guide.md), promote it so the output dir doesn't get a redundant
+    # subdirectory of the same name. Any text before that heading is folded
+    # into the promoted section's body.
+    if not root.heading and len(root.children) == 1:
+        only = root.children[0]
+        preamble = _strip_blank_edges(root.content)
+        if preamble:
+            only.content = [*preamble, "", *only.content]
+        root = only
 
     if dry_run:
         if not root.children:

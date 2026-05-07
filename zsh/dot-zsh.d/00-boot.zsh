@@ -44,12 +44,21 @@ zstyle ':completion:*:*:*:users' ignored-patterns \
 
 zstyle '*' single-ignored show
 
+bindkey -e
+
 autoload -U up-line-or-beginning-search
 zle -N up-line-or-beginning-search
 
 bindkey -M emacs "^[[A" up-line-or-beginning-search
 bindkey -M viins "^[[A" up-line-or-beginning-search
 bindkey -M vicmd "^[[A" up-line-or-beginning-search
+
+bindkey -M emacs '^[[1;5C' forward-word
+bindkey -M viins '^[[1;5C' forward-word
+bindkey -M vicmd '^[[1;5C' forward-word
+bindkey -M emacs '^[[1;5D' backward-word
+bindkey -M viins '^[[1;5D' backward-word
+bindkey -M vicmd '^[[1;5D' backward-word
 
 alias gpf='git push --force-with-lease --force-if-includes'
 alias gco='git checkout'

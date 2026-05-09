@@ -36,7 +36,7 @@ return {
     {
       "<leader>gyp",
       function()
-        local path = vim.fn.expand("%:.")
+        local path = vim.fn.expand("%:p")
         local line = vim.fn.line(".")
         local ref = path .. ":" .. line
         vim.fn.setreg("+", ref)
@@ -48,9 +48,12 @@ return {
     {
       "<leader>gyp",
       function()
-        local path = vim.fn.expand("%:.")
-        local start_line = vim.fn.line("'<")
-        local end_line = vim.fn.line("'>")
+        local path = vim.fn.expand("%:p")
+        local start_line = vim.fn.getpos("v")[2]
+        local end_line = vim.fn.getpos(".")[2]
+        if start_line > end_line then
+          start_line, end_line = end_line, start_line
+        end
         local ref = start_line == end_line
           and path .. ":" .. start_line
           or path .. ":" .. start_line .. "-" .. end_line

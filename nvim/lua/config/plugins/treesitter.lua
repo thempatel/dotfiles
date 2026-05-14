@@ -20,6 +20,7 @@ local ensure_installed = {
   "java",
   "regex",
   "scss",
+  "sql",
   "tsx",
   "ninja",
   "python",

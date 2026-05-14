@@ -17,8 +17,7 @@ return {
     {
       "<leader>fg",
       function()
-        require("fzf-lua").grep({
-          search = "",
+        require("fzf-lua").live_grep({
           rg_opts = table.concat({
             "--column",
             "--line-number",

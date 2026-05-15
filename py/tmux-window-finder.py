@@ -115,6 +115,22 @@ def get_process_label(
     return cmd
 
 
+def session_dirname(session: str) -> str:
+    """Filesystem-safe directory name for a tmux session.
+
+    Slashes appear in session names that sesh derives from absolute paths,
+    and pathlib would otherwise expand them into nested directories.
+    """
+    return session.replace("/", "_")
+
+
+def session_display(session: str) -> str:
+    """Human-friendly name for display. Uses the basename for path-like sessions."""
+    if "/" in session:
+        return session.rsplit("/", 1)[-1]
+    return session
+
+
 def _read_window_json(path: Path) -> dict:
     try:
         return json.loads(path.read_text())
@@ -180,8 +196,9 @@ def _do_update() -> None:
         session, idx, cmd, pane_pid, pane_title, pane_path = line.split("\t", 5)
         label = get_process_label(cmd, pane_pid, pane_title, pane_path, children_map)
 
-        path = STATE_DIR / session / f"{idx}.json"
+        path = STATE_DIR / session_dirname(session) / f"{idx}.json"
         existing = _read_window_json(path)
+        existing["session"] = session
         existing["label"] = label
         existing.setdefault("notify", False)
         _atomic_write_json(path, existing)
@@ -199,14 +216,13 @@ def _read_entries() -> list[tuple[str, str, str, bool]]:
     for session_dir in sorted(STATE_DIR.iterdir()):
         if not session_dir.is_dir():
             continue
-        session = session_dir.name
         for window_file in sorted(session_dir.iterdir()):
             if window_file.suffix != ".json":
                 continue
             data = _read_window_json(window_file)
             entries.append(
                 (
-                    session,
+                    data.get("session", session_dir.name),
                     window_file.stem,
                     data.get("label", "?"),
                     data.get("notify", False),
@@ -219,7 +235,7 @@ def _sort_entries(entries: list[tuple[str, str, str, bool]]) -> None:
     """Sort entries by session, then AI tools first, then label."""
     entries.sort(
         key=lambda e: (
-            e[0].lower(),
+            session_display(e[0]).lower(),
             0 if any(e[2].startswith(t) for t in AI_TOOLS) else 1,
             e[2].lower(),
         )
@@ -252,7 +268,7 @@ def _format_lines(
         if notify:
             display_label = f"\U0001f514 {display_label}"
 
-        lines.append(f"{session} {display_label}\t{session}:{idx}")
+        lines.append(f"{session_display(session)} {display_label}\t{session}:{idx}")
         if session == active_session and idx == active_window:
             active_line = len(lines)
 
@@ -343,8 +359,9 @@ def _do_notify(
 
     hook_input = _read_stdin_hook_input()
 
-    path = STATE_DIR / session / f"{window}.json"
+    path = STATE_DIR / session_dirname(session) / f"{window}.json"
     existing = _read_window_json(path)
+    existing["session"] = session
     existing["notify"] = on
     existing.setdefault("label", "?")
 

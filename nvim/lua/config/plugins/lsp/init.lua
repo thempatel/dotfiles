@@ -9,6 +9,6 @@ return {
     require("config.plugins.lsp.servers").setup()
     require("lspconfig.ui.windows").default_options.border = "rounded"
 
-    vim.keymap.set("n", "<leader>lr", "<cmd>LspRestart all<CR>", { silent = true, desc = "Restart All Servers" })
+    vim.keymap.set("n", "<leader>lr", "<cmd>lsp restart<CR>", { silent = true, desc = "Restart All Servers" })
   end,
 }

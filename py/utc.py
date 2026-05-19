@@ -7,7 +7,7 @@
 
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, tzinfo
 from zoneinfo import ZoneInfo
 
 import typer
@@ -77,8 +77,19 @@ def resolve_tz(name: str) -> ZoneInfo:
     raise typer.Exit(1)
 
 
-def parse_input(parts: list[str]) -> tuple[datetime, ZoneInfo]:
+def parse_input(parts: list[str]) -> tuple[datetime, tzinfo]:
     """Parse free-form input into a datetime and source timezone."""
+    raw = " ".join(parts)
+
+    # ISO 8601 fast path (e.g. "2026-05-19T12:03:18.565Z", "...+02:00")
+    try:
+        iso_dt = datetime.fromisoformat(raw.strip())
+    except ValueError:
+        pass
+    else:
+        if iso_dt.tzinfo is not None:
+            return iso_dt.replace(tzinfo=None), iso_dt.tzinfo
+
     now = datetime.now()
     # Get local timezone
     local_aware = datetime.now(timezone.utc).astimezone()
@@ -91,8 +102,6 @@ def parse_input(parts: list[str]) -> tuple[datetime, ZoneInfo]:
             source_tz = resolve_tz(tzname) if tzname else ZoneInfo("UTC")
         except SystemExit:
             source_tz = ZoneInfo("UTC")
-
-    raw = " ".join(parts)
 
     hour = minute = second = None
     month = day = year = None

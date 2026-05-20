@@ -11,8 +11,9 @@ Subcommands:
   lookup  — read state dir, output for fzf (runs on prefix+w)
   notify  — set/clear AI notification flag on a window
 
-State lives in ~/.local/state/tmux-window-finder/{session}/{window}.json
-Each file: { "label": "...", "notify": false }
+State lives in ~/.local/state/tmux-window-finder/{window_id}.json
+(e.g. @5.json — tmux's stable window id, immune to renumbering / renames).
+Each file: { "session": "...", "window_index": "...", "label": "...", "notify": false }
 """
 
 from __future__ import annotations
@@ -115,15 +116,6 @@ def get_process_label(
     return cmd
 
 
-def session_dirname(session: str) -> str:
-    """Filesystem-safe directory name for a tmux session.
-
-    Slashes appear in session names that sesh derives from absolute paths,
-    and pathlib would otherwise expand them into nested directories.
-    """
-    return session.replace("/", "_")
-
-
 def session_display(session: str) -> str:
     """Human-friendly name for display. Uses the basename for path-like sessions."""
     if "/" in session:
@@ -158,22 +150,19 @@ def update() -> None:
 
 
 def _prune_stale_files(live_files: set[Path]) -> None:
-    """Remove window files that no longer correspond to live tmux windows."""
+    """Remove window files (and legacy session dirs) that no longer correspond to live tmux windows."""
     if not STATE_DIR.exists():
         return
-    for session_dir in STATE_DIR.iterdir():
-        if not session_dir.is_dir():
+    for entry in STATE_DIR.iterdir():
+        if entry.is_dir():
+            # Legacy <session>/<window>.json layout — flat keying makes this obsolete.
+            for child in entry.iterdir():
+                if child.is_file():
+                    child.unlink()
+            entry.rmdir()
             continue
-        _prune_session_dir(session_dir, live_files)
-
-
-def _prune_session_dir(session_dir: Path, live_files: set[Path]) -> None:
-    """Remove stale window files from a session dir, then remove the dir if empty."""
-    for window_file in session_dir.iterdir():
-        if window_file.suffix == ".json" and window_file not in live_files:
-            window_file.unlink()
-    if not any(session_dir.iterdir()):
-        session_dir.rmdir()
+        if entry.suffix == ".json" and entry not in live_files:
+            entry.unlink()
 
 
 def _do_update() -> None:
@@ -182,7 +171,7 @@ def _do_update() -> None:
             "list-windows",
             "-a",
             "-F",
-            "#{session_name}\t#{window_index}\t#{pane_current_command}\t#{pane_pid}\t#{pane_title}\t#{pane_current_path}",
+            "#{window_id}\t#{session_name}\t#{window_index}\t#{pane_current_command}\t#{pane_pid}\t#{pane_title}\t#{pane_current_path}",
         )
     except subprocess.CalledProcessError:
         return
@@ -193,12 +182,15 @@ def _do_update() -> None:
     live_files: set[Path] = set()
 
     for line in raw.splitlines():
-        session, idx, cmd, pane_pid, pane_title, pane_path = line.split("\t", 5)
+        window_id, session, idx, cmd, pane_pid, pane_title, pane_path = line.split(
+            "\t", 6
+        )
         label = get_process_label(cmd, pane_pid, pane_title, pane_path, children_map)
 
-        path = STATE_DIR / session_dirname(session) / f"{idx}.json"
+        path = STATE_DIR / f"{window_id}.json"
         existing = _read_window_json(path)
         existing["session"] = session
+        existing["window_index"] = idx
         existing["label"] = label
         existing.setdefault("notify", False)
         _atomic_write_json(path, existing)
@@ -213,21 +205,22 @@ def _do_update() -> None:
 def _read_entries() -> list[tuple[str, str, str, bool]]:
     """Read all window entries from the state directory."""
     entries: list[tuple[str, str, str, bool]] = []
-    for session_dir in sorted(STATE_DIR.iterdir()):
-        if not session_dir.is_dir():
+    for window_file in sorted(STATE_DIR.iterdir()):
+        if not window_file.is_file() or window_file.suffix != ".json":
             continue
-        for window_file in sorted(session_dir.iterdir()):
-            if window_file.suffix != ".json":
-                continue
-            data = _read_window_json(window_file)
-            entries.append(
-                (
-                    data.get("session", session_dir.name),
-                    window_file.stem,
-                    data.get("label", "?"),
-                    data.get("notify", False),
-                )
+        data = _read_window_json(window_file)
+        session = data.get("session")
+        window_index = data.get("window_index")
+        if session is None or window_index is None:
+            continue
+        entries.append(
+            (
+                session,
+                window_index,
+                data.get("label", "?"),
+                data.get("notify", False),
             )
+        )
     return entries
 
 
@@ -348,20 +341,31 @@ def _do_notify(
         typer.echo("Specify --on or --off", err=True)
         raise typer.Exit(code=1)
 
-    # Use $TMUX_PANE to resolve the pane where the hook is running,
-    # rather than the currently focused window (which may differ).
-    pane_target = os.environ.get("TMUX_PANE")
-    target_args = ["-t", pane_target] if pane_target else []
-    if session is None:
-        session = tmux("display-message", *target_args, "-p", "#{session_name}")
-    if window is None:
-        window = tmux("display-message", *target_args, "-p", "#{window_index}")
+    # Resolve a stable window_id for the target. Priority:
+    #   1. explicit -s/-w (from the fzf bell-clear binding)
+    #   2. $TMUX_PANE (set when invoked from a hook in a pane)
+    #   3. the currently focused window
+    if session is not None and window is not None:
+        target_args = ["-t", f"{session}:{window}"]
+    elif pane_target := os.environ.get("TMUX_PANE"):
+        target_args = ["-t", pane_target]
+    else:
+        target_args = []
+
+    resolved = tmux(
+        "display-message",
+        *target_args,
+        "-p",
+        "#{window_id}\t#{session_name}\t#{window_index}",
+    )
+    window_id, session, window_index = resolved.split("\t", 2)
 
     hook_input = _read_stdin_hook_input()
 
-    path = STATE_DIR / session_dirname(session) / f"{window}.json"
+    path = STATE_DIR / f"{window_id}.json"
     existing = _read_window_json(path)
     existing["session"] = session
+    existing["window_index"] = window_index
     existing["notify"] = on
     existing.setdefault("label", "?")
 

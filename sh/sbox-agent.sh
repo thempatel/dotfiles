@@ -56,6 +56,8 @@ OPTIONAL_WRITE_PATHS=(
   "$HOME/.npm"                                      # npm cache
   "$HOME/.dbt"                                      # DBT Data
   "$HOME/go"                                        # Golang
+  "$HOME/.docker/buildx"                            # Docker buildx state
+  "$HOME/Library/Group Containers/group.com.docker" # Docker credential helper
 )
 for p in "${OPTIONAL_WRITE_PATHS[@]}"; do
   [[ -d "$p" ]] && WRITE_PATHS+=(-w "$p")

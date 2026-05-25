@@ -40,7 +40,7 @@ return {
         vim.notify(("Format: unknown sqlfluff dialect %q"):format(dialect), vim.log.levels.ERROR)
         return
       end
-      vim.cmd(("%%!sqlfluff fix --dialect %s -"):format(vim.fn.shellescape(dialect)))
+      vim.cmd(("%%!sqlfluff fix --dialect %s - 2>/dev/null"):format(vim.fn.shellescape(dialect)))
     end, {
       nargs = "?",
       complete = function()

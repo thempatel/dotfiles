@@ -55,6 +55,7 @@ OPTIONAL_WRITE_PATHS=(
   "$HOME/.local"                                    # XDG data
   "$HOME/.npm"                                      # npm cache
   "$HOME/.dbt"                                      # DBT Data
+  "$HOME/.gem"                                      # Ruby gems
   "$HOME/go"                                        # Golang
   "$HOME/.docker/buildx"                            # Docker buildx state
   "$HOME/Library/Group Containers/group.com.docker" # Docker credential helper

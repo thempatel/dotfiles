@@ -122,7 +122,7 @@ M.keys = {
   {
     "<C-d>",
     function()
-      if not require("noice.lsp").scroll(4) then
+      if not require("noice.lsp").scroll(4) and vim.fn.mode() == "n" then
         return "10jzz"
       end
     end,
@@ -134,7 +134,7 @@ M.keys = {
   {
     "<C-u>",
     function()
-      if not require("noice.lsp").scroll(-4) then
+      if not require("noice.lsp").scroll(-4) and vim.fn.mode() == "n" then
         return "10kzz"
       end
     end,

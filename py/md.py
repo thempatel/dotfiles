@@ -1,15 +1,18 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["typer>=0.9.0"]
+# dependencies = ["typer>=0.9.0", "markdown-it-py[linkify]>=3.0"]
 # ///
 """md - A tool for manipulating markdown files."""
 
 import re
+import tempfile
+import webbrowser
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import typer
+from markdown_it import MarkdownIt
 
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -319,8 +322,118 @@ def _print_tree(section: Section, prefix: str = "", is_last: bool = True) -> Non
 
 
 # ---------------------------------------------------------------------------
+# HTML rendering
+# ---------------------------------------------------------------------------
+
+# GitHub-like styling: constrained width, system font, styled code and tables.
+HTML_STYLE = """\
+body {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #1f2328;
+}
+h1, h2 { border-bottom: 1px solid #d1d9e0; padding-bottom: .3em; }
+h1, h2, h3, h4, h5, h6 { font-weight: 600; line-height: 1.25; margin: 1.5em 0 .5em; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code {
+  background: #eff1f3;
+  padding: .2em .4em;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 85%;
+}
+pre {
+  background: #f6f8fa;
+  padding: 1rem;
+  border-radius: 6px;
+  overflow: auto;
+}
+pre code { background: none; padding: 0; font-size: 100%; }
+blockquote {
+  margin: 0;
+  padding: 0 1em;
+  color: #59636e;
+  border-left: .25em solid #d1d9e0;
+}
+table { border-collapse: collapse; margin: 1em 0; }
+th, td { border: 1px solid #d1d9e0; padding: 6px 13px; }
+tr:nth-child(2n) { background: #f6f8fa; }
+img { max-width: 100%; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 1.5em 0; }
+"""
+
+HTML_TEMPLATE = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title}</title>
+<style>
+{style}</style>
+</head>
+<body>
+{body}</body>
+</html>
+"""
+
+
+def render_html(text: str, title: str) -> str:
+    """Render markdown *text* to a full, styled HTML document."""
+    md = MarkdownIt("gfm-like")
+    body = md.render(text)
+    return HTML_TEMPLATE.format(title=title, style=HTML_STYLE, body=body)
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
+
+@app.command()
+def view(
+    ctx: typer.Context,
+    file: Path = typer.Argument(None, help="Markdown file to view."),
+    output: Path = typer.Option(
+        None,
+        "-o",
+        "--output",
+        help="Write the HTML to this path instead of a temp file.",
+    ),
+    no_open: bool = typer.Option(
+        False, "--no-open", help="Write the HTML without opening a browser."
+    ),
+) -> None:
+    """Render a markdown file to HTML and open it in a browser."""
+    if file is None:
+        typer.echo(ctx.get_help())
+        raise typer.Exit(0)
+
+    if not file.exists():
+        typer.echo(f"File not found: {file}", err=True)
+        raise typer.Exit(1)
+
+    html = render_html(file.read_text(), title=file.name)
+
+    if output is not None:
+        output.write_text(html)
+        out_path = output
+    else:
+        fd, tmp = tempfile.mkstemp(suffix=".html", prefix=f"{file.stem}-")
+        out_path = Path(tmp)
+        with open(fd, "w") as f:
+            f.write(html)
+
+    if no_open:
+        typer.echo(f"Wrote {out_path}")
+    else:
+        webbrowser.open(out_path.resolve().as_uri())
 
 
 @app.command()

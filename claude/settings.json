@@ -1,4 +1,5 @@
 {
+  "includeCoAuthoredBy": false,
   "cleanupPeriodDays": 365,
   "showThinkingSummaries": true,
   "alwaysThinkingEnabled": true,

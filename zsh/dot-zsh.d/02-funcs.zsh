@@ -55,18 +55,6 @@ s() {
   }
 }
 
-cc-no-commit() {
-  local dir=".claude"
-  local file="$dir/settings.local.json"
-  mkdir -p "$dir"
-
-  if [[ ! -f "$file" ]]; then
-    echo '{}' > "$file"
-  fi
-
-  jq '.includeCoAuthoredBy = false' "$file" | sponge "$file"
-}
-
 y() {
   local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
   command yazi "$@" --cwd-file="$tmp"

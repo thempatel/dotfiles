@@ -9,11 +9,12 @@ tmux-window-finder - Fuzzy find tmux windows by session + process label.
 Subcommands:
   update  — query tmux + ps, resolve labels, write per-window JSON (runs on hooks)
   lookup  — read state dir, output for fzf (runs on prefix+w)
-  notify  — set/clear AI notification flag on a window
+  notify  — set/clear the AI status flag on a window (--on/--working/--off)
 
 State lives in ~/.local/state/tmux-window-finder/{window_id}.json
 (e.g. @5.json — tmux's stable window id, immune to renumbering / renames).
-Each file: { "session": "...", "window_index": "...", "label": "...", "notify": false }
+Each file: { "session": "...", "window_index": "...", "label": "...", "status": null }
+status is one of "notify" (\U0001f514), "working" (⌛), or null.
 """
 
 from __future__ import annotations
@@ -32,6 +33,9 @@ STATE_DIR = Path.home() / ".local" / "state" / "tmux-window-finder"
 
 AI_TOOLS = {"claude", "codex"}
 SHELLS = {"zsh", "bash", "fish"}
+
+# Per-window status flag → emoji shown in the picker. None / absent = no emoji.
+STATUS_EMOJI = {"notify": "\U0001f514", "working": "⌛"}
 
 
 # -- helpers ------------------------------------------------------------------
@@ -192,7 +196,7 @@ def _do_update() -> None:
         existing["session"] = session
         existing["window_index"] = idx
         existing["label"] = label
-        existing.setdefault("notify", False)
+        existing.setdefault("status", None)
         _atomic_write_json(path, existing)
         live_files.add(path)
 
@@ -202,9 +206,9 @@ def _do_update() -> None:
 # -- lookup -------------------------------------------------------------------
 
 
-def _read_entries() -> list[tuple[str, str, str, bool]]:
+def _read_entries() -> list[tuple[str, str, str, str | None]]:
     """Read all window entries from the state directory."""
-    entries: list[tuple[str, str, str, bool]] = []
+    entries: list[tuple[str, str, str, str | None]] = []
     for window_file in sorted(STATE_DIR.iterdir()):
         if not window_file.is_file() or window_file.suffix != ".json":
             continue
@@ -218,13 +222,13 @@ def _read_entries() -> list[tuple[str, str, str, bool]]:
                 session,
                 window_index,
                 data.get("label", "?"),
-                data.get("notify", False),
+                data.get("status"),
             )
         )
     return entries
 
 
-def _sort_entries(entries: list[tuple[str, str, str, bool]]) -> None:
+def _sort_entries(entries: list[tuple[str, str, str, str | None]]) -> None:
     """Sort entries by session, then AI tools first, then label."""
     entries.sort(
         key=lambda e: (
@@ -236,7 +240,7 @@ def _sort_entries(entries: list[tuple[str, str, str, bool]]) -> None:
 
 
 def _format_lines(
-    entries: list[tuple[str, str, str, bool]],
+    entries: list[tuple[str, str, str, str | None]],
     active_session: str,
     active_window: str,
 ) -> tuple[list[str], int]:
@@ -249,7 +253,7 @@ def _format_lines(
     label_counters: dict[tuple[str, str], int] = {}
     lines: list[str] = []
     active_line = 1
-    for session, idx, label, notify in entries:
+    for session, idx, label, status in entries:
         key = (session, label)
         if label_counts[key] > 1:
             n = label_counters.get(key, 0) + 1
@@ -258,8 +262,9 @@ def _format_lines(
         else:
             display_label = label
 
-        if notify:
-            display_label = f"\U0001f514 {display_label}"
+        emoji = STATUS_EMOJI.get(status)
+        if emoji:
+            display_label = f"{emoji} {display_label}"
 
         lines.append(f"{session_display(session)} {display_label}\t{session}:{idx}")
         if session == active_session and idx == active_window:
@@ -297,8 +302,13 @@ def lookup() -> None:
 
 @app.command()
 def notify(
-    on: bool = typer.Option(False, "--on", help="Set notification flag"),
-    off: bool = typer.Option(False, "--off", help="Clear notification flag"),
+    on: bool = typer.Option(
+        False, "--on", help="Flag the window as needing attention (\U0001f514)"
+    ),
+    off: bool = typer.Option(False, "--off", help="Clear the window's status flag"),
+    working: bool = typer.Option(
+        False, "--working", help="Flag the window as actively working (⌛)"
+    ),
     agent: str | None = typer.Option(
         None, "--agent", "-a", help="Coding agent name (claude, codex)"
     ),
@@ -309,9 +319,11 @@ def notify(
         None, "--window", "-w", help="Target window index (auto-detected if omitted)"
     ),
 ) -> None:
-    """Set or clear the AI notification flag on a tmux window."""
+    """Set or clear the AI status flag on a tmux window."""
     try:
-        _do_notify(on=on, off=off, agent=agent, session=session, window=window)
+        _do_notify(
+            on=on, off=off, working=working, agent=agent, session=session, window=window
+        )
     except Exception:
         pass  # hooks must never return non-zero
 
@@ -333,13 +345,17 @@ def _do_notify(
     *,
     on: bool,
     off: bool,
+    working: bool,
     agent: str | None,
     session: str | None,
     window: str | None,
 ) -> None:
-    if not on and not off:
-        typer.echo("Specify --on or --off", err=True)
+    if not on and not off and not working:
+        typer.echo("Specify --on, --off, or --working", err=True)
         raise typer.Exit(code=1)
+
+    # on takes priority over working; off (or nothing-set fallthrough) clears.
+    status = "notify" if on else "working" if working else None
 
     # Resolve a stable window_id for the target. Priority:
     #   1. explicit -s/-w (from the fzf bell-clear binding)
@@ -366,13 +382,13 @@ def _do_notify(
     existing = _read_window_json(path)
     existing["session"] = session
     existing["window_index"] = window_index
-    existing["notify"] = on
+    existing["status"] = status
     existing.setdefault("label", "?")
 
     # Store debug metadata from hook invocation
     existing["last_hook"] = {
         "event": hook_input.get("hook_event_name"),
-        "action": "on" if on else "off",
+        "action": status or "off",
         "agent": agent,
         "session_id": hook_input.get("session_id"),
         "cwd": hook_input.get("cwd"),

@@ -30,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "tmux-window-finder notify --off --agent claude"
+            "command": "tmux-window-finder notify --working --agent claude"
           }
         ]
       }
@@ -40,7 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "tmux-window-finder notify --off --agent claude"
+            "command": "tmux-window-finder notify --working --agent claude"
           }
         ]
       }

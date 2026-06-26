@@ -1,10 +1,6 @@
 {
-  "includeCoAuthoredBy": false,
   "cleanupPeriodDays": 365,
-  "showThinkingSummaries": true,
-  "alwaysThinkingEnabled": true,
-  "skipDangerousModePermissionPrompt": true,
-  "autoUpdates": true,
+  "includeCoAuthoredBy": false,
   "hooks": {
     "Stop": [
       {
@@ -57,5 +53,10 @@
         ]
       }
     ]
-  }
+  },
+  "alwaysThinkingEnabled": true,
+  "showThinkingSummaries": true,
+  "skipDangerousModePermissionPrompt": true,
+  "autoUpdates": true,
+  "tui": "fullscreen"
 }

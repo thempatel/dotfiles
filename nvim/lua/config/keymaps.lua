@@ -12,16 +12,14 @@ keymap("n", "<leader><Tab>d", ":tabclose<CR>", { silent = true, desc = "Close Ta
 keymap("n", "<leader><Tab>n", ":tabnext<CR>", { silent = true, desc = "Next Tab" })
 keymap("n", "<leader><Tab>p", ":tabprevious<CR>", { silent = true, desc = "Previous Tab" })
 
-keymap("n", "x", '"_x', { silent = true })
-local dd = function()
-  if vim.api.nvim_get_current_line():match("^%s*$") then
-    return '"_dd'
-  else
-    return "dd"
-  end
-end
-keymap("n", "dd", dd, { noremap = true, expr = true })
-keymap("n", "Y", "y$", { silent = true })
+-- Yank and paste use the system clipboard; deletes/changes stay in vim's own
+-- registers (clipboard is unset), so they never clobber the clipboard.
+-- (y/Y route to the "+ register via the sticky-yank maps in autocmd.lua.)
+keymap("n", "p", '"+p', { silent = true })
+keymap("n", "P", '"+P', { silent = true })
+-- v_P pastes over the selection without overwriting the clipboard.
+keymap("x", "p", '"+P', { silent = true })
+keymap("x", "P", '"+P', { silent = true })
 keymap("n", "n", "nzzzv", { silent = true })
 keymap("n", "N", "Nzzzv", { silent = true })
 keymap("v", "<", "<gv", { silent = true, desc = "Indent Less" })

@@ -132,11 +132,11 @@ end, { range = true })
 local cursorPreYank
 vim.keymap.set({ "n", "x" }, "y", function()
   cursorPreYank = vim.api.nvim_win_get_cursor(0)
-  return "y"
+  return '"+y'
 end, { expr = true })
 vim.keymap.set("n", "Y", function()
   cursorPreYank = vim.api.nvim_win_get_cursor(0)
-  return "y$"
+  return '"+y$'
 end, { expr = true })
 
 vim.api.nvim_create_autocmd("TextYankPost", {

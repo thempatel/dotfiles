@@ -4,6 +4,11 @@ set -e
 CODE_ROOT="${CODE_ROOT:-$HOME/src}"
 WORKTREE_ROOT="$CODE_ROOT/worktrees"
 
+# Sentinel branch name meaning "check out a detached worktree off latest main"
+# rather than creating/switching to a branch. Emitted when the user hits enter
+# on a blank branch prompt.
+DETACHED_SENTINEL="__WK_DETACHED__"
+
 usage() {
   echo "Usage: wk [--tmux] [<repo-path>]"
   echo "  No args:    fzf picker of projects in \$CODE_ROOT"
@@ -191,7 +196,7 @@ pick_branch() {
     printf '%s\n' "$branch_candidates" |
     fzf --prompt="branch> " --height=40% --reverse \
       --border-label ' Branches ' \
-      --header $'Enter: use input  Tab: copy highlighted branch\nType to filter existing branches or enter a new branch name' \
+      --header $'Enter: use input (blank = detached off main)  Tab: copy highlighted branch\nType to filter existing branches or enter a new branch name' \
       --delimiter=$'\t' --with-nth=1 \
       --bind "tab:transform-query:[[ -n {} ]] && printf %s {1} || printf %s \"\$FZF_QUERY\"" \
       --expect=enter \
@@ -223,8 +228,9 @@ pick_branch() {
   fi
 
   if [[ -z "$branch_name" ]]; then
-    echo "Error: branch name required" >&2
-    return 1
+    # Blank prompt: caller creates a detached worktree off latest main.
+    printf '%s\t%s\n' "$DETACHED_SENTINEL" ""
+    return 0
   fi
 
   if [[ -z "$branch_source" ]] \
@@ -269,6 +275,28 @@ ensure_worktree() {
   echo "$wt_dir"
 }
 
+# Ensure a detached worktree checked out at latest main and print its path.
+ensure_detached_worktree() {
+  local repo_path="$1"
+  local repo_name
+  repo_name=$(basename "$repo_path")
+
+  mkdir -p "$WORKTREE_ROOT"
+
+  local base
+  refresh_default_branch "$repo_path"
+  base=$(default_start_point "$repo_path")
+
+  local wt_dir
+  if wt_dir=$(find_worktree_dir "$repo_name"); then
+    git -C "$wt_dir" switch --detach "$base" >&2
+  else
+    git -C "$repo_path" worktree add --detach "$wt_dir" "$base" >&2
+  fi
+
+  echo "$wt_dir"
+}
+
 main() {
   local TMUX_MODE=false
   local REPO_PATH=""
@@ -299,7 +327,11 @@ main() {
   IFS=$'\t' read -r BRANCH_NAME BRANCH_SOURCE <<< "$branch_line"
 
   local WORKTREE_DIR
-  WORKTREE_DIR=$(ensure_worktree "$REPO_PATH" "$BRANCH_NAME" "$BRANCH_SOURCE")
+  if [[ "$BRANCH_NAME" == "$DETACHED_SENTINEL" ]]; then
+    WORKTREE_DIR=$(ensure_detached_worktree "$REPO_PATH")
+  else
+    WORKTREE_DIR=$(ensure_worktree "$REPO_PATH" "$BRANCH_NAME" "$BRANCH_SOURCE")
+  fi
 
   if [[ -f "$WORKTREE_DIR/.envrc" ]]; then
     direnv allow "$WORKTREE_DIR/.envrc"

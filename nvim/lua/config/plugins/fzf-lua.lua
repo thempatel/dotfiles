@@ -7,7 +7,10 @@ return {
       "<leader>ff",
       function()
         require("fzf-lua").files({
-          fd_opts = "--type f --hidden --no-ignore --exclude node_modules --exclude .git --exclude .direnv --exclude dist --exclude third-party",
+          -- off by default, but set (not nil) so alt-h/alt-i can toggle them on
+          hidden = false,
+          no_ignore = false,
+          fd_opts = "--type f --exclude node_modules --exclude .git --exclude .direnv --exclude dist --exclude third-party",
         })
       end,
       desc = "Find Files",
@@ -18,6 +21,9 @@ return {
       "<leader>fg",
       function()
         require("fzf-lua").live_grep({
+          -- off by default, but set (not nil) so alt-h/alt-i can toggle them on
+          hidden = false,
+          no_ignore = false,
           rg_opts = table.concat({
             "--column",
             "--line-number",
@@ -30,7 +36,6 @@ return {
             "-g '!yarn.lock'",
             "-g '!*.lock'",
             "-g '!*-lock.json'",
-            "--hidden",
             "--trim",
           }, " "),
         })

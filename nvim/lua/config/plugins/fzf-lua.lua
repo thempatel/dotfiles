@@ -55,6 +55,7 @@ return {
     { "<leader>fr", "<cmd>FzfLua resume<cr>", desc = "Resume" },
     { "<leader>fd", "<cmd>FzfLua treesitter<cr>", desc = "Treesitter Symbols" },
     { "<leader>fs", "<cmd>FzfLua git_status<cr>", desc = "Git Status" },
+    { "<leader>ce", "<cmd>FzfLua filetypes<cr>", desc = "Set Filetype" },
   },
   opts = {
     defaults = {

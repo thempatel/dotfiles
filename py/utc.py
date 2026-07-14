@@ -81,6 +81,16 @@ def parse_input(parts: list[str]) -> tuple[datetime, tzinfo]:
     """Parse free-form input into a datetime and source timezone."""
     raw = " ".join(parts)
 
+    # Epoch timestamp fast path (bare integer: seconds or millis since epoch).
+    # Millisecond timestamps are ~1e12 today, seconds ~1e9; treat large
+    # magnitudes as millis (seconds wouldn't reach 1e11 until the year 5138).
+    stripped = raw.strip()
+    if re.fullmatch(r"-?\d+", stripped):
+        value = int(stripped)
+        ts = value / 1000 if abs(value) >= 1e11 else value
+        epoch_dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+        return epoch_dt.replace(tzinfo=None), timezone.utc
+
     # ISO 8601 fast path (e.g. "2026-05-19T12:03:18.565Z", "...+02:00")
     try:
         iso_dt = datetime.fromisoformat(raw.strip())
@@ -182,7 +192,7 @@ app = typer.Typer(add_completion=False)
 @app.command()
 def main(
     input_parts: list[str] = typer.Argument(
-        help="Fuzzy time input, e.g. '17:12', '17:12 cet', '03/23 5:12 pm'"
+        help="Fuzzy time input, e.g. '17:12', '17:12 cet', '03/23 5:12 pm', '1747656198'"
     ),
     seconds: bool = typer.Option(False, "-s", help="Output as epoch seconds."),
     millis: bool = typer.Option(False, "-m", help="Output as epoch milliseconds."),
@@ -198,6 +208,8 @@ def main(
         utc 03/23 17:12        -> March 23 this year, 17:12 local -> UTC
         utc 03/23 5:12 pm      -> March 23 this year, 5:12 PM local -> UTC
         utc 03/23 5:12 pm pst  -> March 23 this year, 5:12 PM PST -> UTC
+        utc 1747656198         -> epoch seconds -> UTC
+        utc 1747656198565      -> epoch millis -> UTC
         utc -s 17:12           -> epoch seconds
         utc -m 17:12           -> epoch milliseconds
         utc -l 17:12           -> 17:12 UTC -> local time

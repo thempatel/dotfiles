@@ -32,8 +32,8 @@ if ! command -v mise &> /dev/null; then
 fi
 eval "$(mise activate bash)"
 
+./brew/install.sh
 
-brew bundle --file brew/Brewfile
 mise i
 deno install
 pre-commit install

@@ -1,0 +1,4 @@
+tap "qmk/qmk", trusted: true
+
+brew "container"
+brew "podman"

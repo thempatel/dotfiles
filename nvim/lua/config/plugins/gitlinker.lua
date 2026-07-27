@@ -78,12 +78,33 @@ return {
       function()
         local abs = vim.fn.expand("%:p")
         local root = vim.fs.root(0, ".git")
-        local ref = (root and vim.startswith(abs, root)) and abs:sub(#root + 2) or abs
+        local rel = (root and vim.startswith(abs, root)) and abs:sub(#root + 2) or abs
+        local ref = rel .. ":" .. vim.fn.line(".")
         vim.fn.setreg("+", ref)
         vim.notify(ref, vim.log.levels.INFO, { title = "Copied" })
       end,
-      desc = "Copy repo-relative path",
+      desc = "Copy repo-relative path:line",
       mode = { "n" },
+    },
+    {
+      "<leader>gyr",
+      function()
+        local abs = vim.fn.expand("%:p")
+        local root = vim.fs.root(0, ".git")
+        local rel = (root and vim.startswith(abs, root)) and abs:sub(#root + 2) or abs
+        local start_line = vim.fn.getpos("v")[2]
+        local end_line = vim.fn.getpos(".")[2]
+        if start_line > end_line then
+          start_line, end_line = end_line, start_line
+        end
+        local ref = start_line == end_line
+          and rel .. ":" .. start_line
+          or rel .. ":" .. start_line .. "-" .. end_line
+        vim.fn.setreg("+", ref)
+        vim.notify(ref, vim.log.levels.INFO, { title = "Copied" })
+      end,
+      desc = "Copy repo-relative path:line",
+      mode = { "v" },
     },
   },
 }

@@ -19,6 +19,18 @@ M.setup = function()
     capabilities = handlers.capabilities(),
   })
 
+  -- Force-kill LSP servers on quit instead of waiting for each to honor the
+  -- graceful shutdown request, which can hang exit for several seconds when a
+  -- server (e.g. gopls/rust_analyzer) is slow to die.
+  vim.api.nvim_create_autocmd("VimLeavePre", {
+    group = vim.api.nvim_create_augroup("lsp-force-stop", { clear = true }),
+    callback = function()
+      for _, client in ipairs(vim.lsp.get_clients()) do
+        client:stop(true)
+      end
+    end,
+  })
+
   vim.api.nvim_create_autocmd("LspAttach", {
     group = vim.api.nvim_create_augroup("lsp-attach", { clear = true }),
     callback = function(event)

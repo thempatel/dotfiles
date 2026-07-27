@@ -1,4 +1,8 @@
 return {
+  -- TypeScript 7's native LSP is the `tsc` binary (`setup/02-lsp.sh` puts it on
+  -- PATH). Pin to it rather than lspconfig's default project-local lookup: a
+  -- project's own `tsc` may be classic TS <7, which doesn't support `--lsp`.
+  cmd = { "tsc", "--lsp", "--stdio" },
   filetypes = { "typescript", "javascript", "javascriptreact", "typescriptreact" },
   root_dir = function(bufnr, on_dir)
     local fname = vim.api.nvim_buf_get_name(bufnr)

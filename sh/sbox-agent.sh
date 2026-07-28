@@ -59,6 +59,7 @@ OPTIONAL_WRITE_PATHS=(
   "$HOME/go"                                        # Golang
   "$HOME/.docker/buildx"                            # Docker buildx state
   "$HOME/Library/Group Containers/group.com.docker" # Docker credential helper
+  "$HOME/.moon"                                     # Moon
 )
 for p in "${OPTIONAL_WRITE_PATHS[@]}"; do
   [[ -d "$p" ]] && WRITE_PATHS+=(-w "$p")

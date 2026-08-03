@@ -6,6 +6,7 @@ whitespace = fix
 
 [branch]
 sort = -committerdate
+autoSetupMerge = simple
 
 [commit]
 template = ~/.config/git/commit-template

@@ -19,6 +19,10 @@ M.setup = function()
     capabilities = handlers.capabilities(),
   })
 
+  -- Stop memory-hungry servers once this instance has sat idle for hours; they
+  -- never release memory on their own and a long-lived nvim keeps them pinned.
+  require("config.lsp.reaper").setup()
+
   -- Force-kill LSP servers on quit instead of waiting for each to honor the
   -- graceful shutdown request, which can hang exit for several seconds when a
   -- server (e.g. gopls/rust_analyzer) is slow to die.

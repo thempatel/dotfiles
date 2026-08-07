@@ -19,6 +19,23 @@ local function reap()
   end
 end
 
+--- Stop servers nothing is using any more. Neovim does not stop a client when
+--- its last buffer detaches, so once the buffer cap evicts the last file of a
+--- project the server would otherwise sit there with a whole program resident.
+--- Deliberately not flagged as `reaped`: there are no buffers left to re-attach,
+--- and opening a new one starts a fresh client through `FileType` anyway.
+local function reap_orphans()
+  for _, name in ipairs(NAMES) do
+    for _, client in ipairs(vim.lsp.get_clients({ name = name })) do
+      -- `initialized` skips the window between spawn and first attach, where a
+      -- healthy client legitimately has no buffers yet.
+      if client.initialized and next(client.attached_buffers) == nil then
+        client:stop(true)
+      end
+    end
+  end
+end
+
 --- Re-attach whatever we stopped. `FileType` is the only trigger that starts a
 --- client, so replaying it over every buffer is what brings the server back;
 --- this is the same call `vim.lsp.enable()` uses to pick up existing buffers.
@@ -43,8 +60,13 @@ function M.setup()
     CHECK_MS,
     CHECK_MS,
     vim.schedule_wrap(function()
-      if not reaped and vim.uv.now() - last_active >= IDLE_MS then
+      if reaped then
+        return
+      end
+      if vim.uv.now() - last_active >= IDLE_MS then
         reap()
+      else
+        reap_orphans()
       end
     end)
   )

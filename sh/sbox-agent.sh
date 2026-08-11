@@ -12,6 +12,11 @@
 
 set -e
 
+if [[ -z "${CODE_ROOT:-}" ]]; then
+  echo "sbox-agent: CODE_ROOT must be set in the environment" >&2
+  exit 1
+fi
+
 EXTRA_ARGS=()
 while getopts "w:W:d:" opt; do
   case "$opt" in
@@ -60,6 +65,7 @@ OPTIONAL_WRITE_PATHS=(
   "$HOME/.docker/buildx"                            # Docker buildx state
   "$HOME/Library/Group Containers/group.com.docker" # Docker credential helper
   "$HOME/.moon"                                     # Moon
+  "$CODE_ROOT/sandbox"                              # Scratch space
 )
 for p in "${OPTIONAL_WRITE_PATHS[@]}"; do
   [[ -d "$p" ]] && WRITE_PATHS+=(-w "$p")
@@ -81,7 +87,7 @@ case "$AGENT" in
 
     AGENT_ARGS=(--dangerously-skip-permissions)
 
-    CC_TOOLSHED="${CODE_ROOT:-$HOME/src}/cc-toolshed"
+    CC_TOOLSHED="$CODE_ROOT/cc-toolshed"
     if [[ -d "$CC_TOOLSHED" ]]; then
       WRITE_PATHS+=(-w "$CC_TOOLSHED")
       AGENT_ARGS+=(--plugin-dir "$CC_TOOLSHED")

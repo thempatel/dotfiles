@@ -69,6 +69,7 @@ alias gp='git push'
 alias grhh='git reset --hard'
 alias groh='git reset origin/$(git_current_branch) --hard'
 alias gcan='git commit --amend --no-edit'
+alias glo='git log --oneline --decorate'
 
 alias ls='ls -G'
 alias lsa='ls -lah'

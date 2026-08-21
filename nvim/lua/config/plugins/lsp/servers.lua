@@ -5,7 +5,7 @@ M.setup = function()
 
   vim.lsp.enable("kulala_ls") -- setup/02-lsp.sh
   vim.lsp.enable("denols")
-  vim.lsp.enable("tsgo") -- setup/02-lsp.sh
+  vim.lsp.enable("ts7") -- setup/02-lsp.sh
   vim.lsp.enable("ty") -- mise
   vim.lsp.enable("rust_analyzer") -- mise
   vim.lsp.enable("lua_ls") -- mise

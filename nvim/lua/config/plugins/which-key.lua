@@ -61,6 +61,7 @@ M.config = function()
     { "<leader>gy", group = "Copy URLs", icon = "󰌷 ", nowait = false, remap = false },
     { "<leader>h", group = "Gitsigns", icon = "󰊕 ", nowait = false, remap = false },
     { "<leader>l", group = "LSP", icon = "󰚵 ", nowait = false, remap = false },
+    { "<leader>n", desc = "Notification History", icon = "󰎟 ", nowait = false, remap = false },
     { "<leader>p", group = "Panes", icon = " ", nowait = false, remap = false },
     { "<leader>pr", "<C-w>l", desc = "Move Right", nowait = false, remap = false },
     { "<leader>pl", "<C-w>h", desc = "Move Left", nowait = false, remap = false },

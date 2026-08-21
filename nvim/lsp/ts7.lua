@@ -1,6 +1,10 @@
 local root = require("config.lsp.root")
 local MARKERS = { "tsconfig.json", "jsconfig.json", "package.json" }
 
+-- Named `ts7`, not `tsgo`: Neovim merges every `lsp/<name>.lua` on the
+-- runtimepath and later entries win, so an lspconfig-shipped `lsp/tsgo.lua`
+-- would clobber everything below it -- including `cmd`, back to a `tsgo` binary
+-- that no longer exists. A name lspconfig does not ship leaves this file alone.
 return {
   -- TypeScript 7's native LSP is the `tsc` binary (`setup/02-lsp.sh` puts it on
   -- PATH). Pin to it rather than lspconfig's default project-local lookup: a
@@ -19,6 +23,6 @@ return {
     end
     -- Anchor to the outermost project in the checkout so one server covers all
     -- of a monorepo's packages instead of one per package.
-    on_dir(root.shared("tsgo", fname, MARKERS) or vim.fs.dirname(fname))
+    on_dir(root.shared("ts7", fname, MARKERS) or vim.fs.dirname(fname))
   end,
 }

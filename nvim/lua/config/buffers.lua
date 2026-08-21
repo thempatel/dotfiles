@@ -9,6 +9,12 @@ local MAX = 24
 --- Vim already tracks recency: `getbufinfo()` carries a `lastused` timestamp,
 --- so there is no bookkeeping to maintain here.
 local function prune()
+  -- The command-line window (`q:`, `q/`) fires BufEnter but forbids nearly every
+  -- buffer command while it is open, so deleting there raises E11.
+  if vim.fn.getcmdwintype() ~= "" then
+    return
+  end
+
   local visible = {}
   for _, win in ipairs(vim.api.nvim_list_wins()) do
     visible[vim.api.nvim_win_get_buf(win)] = true

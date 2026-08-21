@@ -1,9 +1,9 @@
 local M = {}
 
--- Servers whose footprint justifies reaping. A tsgo server holds a whole
+-- Servers whose footprint justifies reaping. A ts7 server holds a whole
 -- program in memory and has reached 19 GB here; several of them left running
 -- across days is enough to wedge the machine on its own.
-local NAMES = { "tsgo" }
+local NAMES = { "ts7" }
 local IDLE_MS = 45 * 60 * 1000
 local CHECK_MS = 10 * 60 * 1000
 

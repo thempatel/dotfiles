@@ -66,6 +66,7 @@ OPTIONAL_WRITE_PATHS=(
   "$HOME/Library/Group Containers/group.com.docker" # Docker credential helper
   "$HOME/.moon"                                     # Moon
   "$CODE_ROOT/sandbox"                              # Scratch space
+  "$HOME/.aws"
 )
 for p in "${OPTIONAL_WRITE_PATHS[@]}"; do
   [[ -d "$p" ]] && WRITE_PATHS+=(-w "$p")

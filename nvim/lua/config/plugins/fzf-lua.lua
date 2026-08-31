@@ -15,6 +15,25 @@ return {
       end,
       desc = "Find Files",
     },
+    {
+      "gd",
+      function()
+        require("fzf-lua").lsp_definitions({
+          -- A React or styled-components definition otherwise lands you in the
+          -- library's `index.d.ts` rather than your own code. Filtering runs
+          -- before `jump1` is decided, so excluding these still jumps straight
+          -- to the real definition when it is the only one left.
+          regex_filter = function(item)
+            return not item.filename:match("react/index%.d%.ts$")
+              and not item.filename:match("styled%-components/index%.d%.ts$")
+          end,
+        })
+      end,
+      desc = "Show Definitions",
+    },
+    { "gr", "<cmd>FzfLua lsp_references<cr>", desc = "Show References" },
+    { "gi", "<cmd>FzfLua lsp_implementations<cr>", desc = "Show Implementation" },
+    { "gY", "<cmd>FzfLua lsp_typedefs<cr>", desc = "Show Type Definitions" },
     { "<leader>fo", "<cmd>FzfLua lsp_document_symbols<cr>", desc = "LSP Document Symbols" },
     { "<leader>ft", "<cmd>FzfLua lsp_workspace_symbols<cr>", desc = "LSP Workspace Symbols" },
     {

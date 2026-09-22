@@ -33,3 +33,5 @@ targets:
     target: "~/.config/gh-dash"
   - source: "codex"
     target: "~/.codex/hooks"
+  - source: "agents"
+    target: "~/.agents"

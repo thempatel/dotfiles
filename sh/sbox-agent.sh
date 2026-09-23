@@ -66,6 +66,7 @@ OPTIONAL_WRITE_PATHS=(
   "$HOME/Library/Group Containers/group.com.docker" # Docker credential helper
   "$HOME/.moon"                                     # Moon
   "$CODE_ROOT/sandbox"                              # Scratch space
+  "$CODE_ROOT/cc-toolshed"                          # Agent plugins/skills
   "$HOME/.aws"
 )
 for p in "${OPTIONAL_WRITE_PATHS[@]}"; do
@@ -89,10 +90,7 @@ case "$AGENT" in
     AGENT_ARGS=(--dangerously-skip-permissions)
 
     CC_TOOLSHED="$CODE_ROOT/cc-toolshed"
-    if [[ -d "$CC_TOOLSHED" ]]; then
-      WRITE_PATHS+=(-w "$CC_TOOLSHED")
-      AGENT_ARGS+=(--plugin-dir "$CC_TOOLSHED")
-    fi
+    [[ -d "$CC_TOOLSHED" ]] && AGENT_ARGS+=(--plugin-dir "$CC_TOOLSHED")
     ;;
   codex)
     CODEX_CONFIG="$HOME/.codex"

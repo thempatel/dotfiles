@@ -10,11 +10,17 @@ WORKTREE_ROOT="$CODE_ROOT/worktrees"
 DETACHED_SENTINEL="__WK_DETACHED__"
 
 usage() {
-  echo "Usage: wk [--tmux] [<repo-path>]"
+  echo "Usage: wk [<repo-path>]"
+  echo "       wk --free <repo-path>"
   echo "  No args:    fzf picker of projects in \$CODE_ROOT"
   echo "  <repo-path>: skip picker, use this repo directly"
-  echo "  --tmux:     run inside tmux display-popup"
+  echo "  --free:     print the worktree wk would reuse, or None (exit 1)"
   exit 1
+}
+
+# Resolve any path inside a repo (including a worktree) to its root repo.
+resolve_root_repo() {
+  git -C "$1" worktree list --porcelain | head -1 | cut -d' ' -f2-
 }
 
 # Pick a project via fzf (basenames from CODE_ROOT, non-recursive)
@@ -129,6 +135,15 @@ find_worktree_for_branch() {
 
 is_worktree_free() {
   local wt_dir="$1"
+  local repo_path="$2"
+
+  # A directory matching the -wk-N name is not necessarily a worktree of this repo:
+  # git status in a plain directory prints nothing, which would read as free.
+  local wt_common_dir=""
+  wt_common_dir=$(git -C "$wt_dir" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 1
+  if [[ "$wt_common_dir" != "$(git -C "$repo_path" rev-parse --path-format=absolute --git-common-dir)" ]]; then
+    return 1
+  fi
 
   if tmux list-sessions -F '#{session_path}' 2>/dev/null | grep -qx "$wt_dir"; then
     return 1
@@ -143,7 +158,9 @@ is_worktree_free() {
 
 # Find a reusable worktree or the next wk-N suffix for a repo
 find_worktree_dir() {
-  local repo_name="$1"
+  local repo_path="$1"
+  local repo_name
+  repo_name=$(basename "$repo_path")
   local max=0
 
   if [[ -d "$WORKTREE_ROOT" ]]; then
@@ -153,7 +170,7 @@ find_worktree_dir() {
       [[ "$n" =~ ^[0-9]+$ ]] || continue
       (( n > max )) && max=$n
 
-      if is_worktree_free "$dir"; then
+      if is_worktree_free "$dir" "$repo_path"; then
         echo "$dir"
         return 0
       fi
@@ -246,8 +263,6 @@ ensure_worktree() {
   local repo_path="$1"
   local branch_name="$2"
   local branch_source="$3"
-  local repo_name
-  repo_name=$(basename "$repo_path")
 
   mkdir -p "$WORKTREE_ROOT"
   local wt_dir
@@ -255,7 +270,7 @@ ensure_worktree() {
 
   if [[ -z "$wt_dir" ]]; then
     local reuse=false
-    wt_dir=$(find_worktree_dir "$repo_name") && reuse=true
+    wt_dir=$(find_worktree_dir "$repo_path") && reuse=true
 
     if $reuse; then
       reuse_worktree "$wt_dir" "$repo_path" "$branch_name" "$branch_source" >&2
@@ -278,8 +293,6 @@ ensure_worktree() {
 # Ensure a detached worktree checked out at latest main and print its path.
 ensure_detached_worktree() {
   local repo_path="$1"
-  local repo_name
-  repo_name=$(basename "$repo_path")
 
   mkdir -p "$WORKTREE_ROOT"
 
@@ -288,7 +301,7 @@ ensure_detached_worktree() {
   base=$(default_start_point "$repo_path")
 
   local wt_dir
-  if wt_dir=$(find_worktree_dir "$repo_name"); then
+  if wt_dir=$(find_worktree_dir "$repo_path"); then
     git -C "$wt_dir" switch --detach "$base" >&2
   else
     git -C "$repo_path" worktree add --detach "$wt_dir" "$base" >&2
@@ -298,16 +311,21 @@ ensure_detached_worktree() {
 }
 
 main() {
-  local TMUX_MODE=false
+  local FREE_MODE=false
   local REPO_PATH=""
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --tmux) TMUX_MODE=true; shift ;;
+      --free) FREE_MODE=true; shift ;;
       -h|--help) usage ;;
       *) REPO_PATH="$1"; shift ;;
     esac
   done
+
+  if $FREE_MODE && [[ -z "$REPO_PATH" ]]; then
+    echo "Error: --free requires <repo-path>" >&2
+    exit 1
+  fi
 
   if [[ -z "$REPO_PATH" ]]; then
     REPO_PATH=$(pick_project) || exit 0
@@ -315,6 +333,19 @@ main() {
 
   if ! git -C "$REPO_PATH" rev-parse --git-dir &>/dev/null; then
     echo "Error: $REPO_PATH is not a git repository" >&2
+    exit 1
+  fi
+
+  REPO_PATH=$(resolve_root_repo "$REPO_PATH")
+
+  # --free is a query: no prune, no fetch, no worktree created.
+  if $FREE_MODE; then
+    local free_dir
+    if free_dir=$(find_worktree_dir "$REPO_PATH"); then
+      echo "$free_dir"
+      exit 0
+    fi
+    echo "None"
     exit 1
   fi
 

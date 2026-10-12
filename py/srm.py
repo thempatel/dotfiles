@@ -33,6 +33,9 @@ THOUSANDS = re.compile(r"^\d{1,3}(,\d{3})+$")
 # trustworthy and the p-value should not be acted on.
 MIN_EXPECTED = 5
 
+# Power the minimum detectable imbalance is quoted at.
+POWER = 0.80
+
 
 def chi2_sf(x: float, df: int) -> float:
     """Upper tail P(X > x) for chi-square with df degrees of freedom."""
@@ -79,6 +82,78 @@ def gammaq(s: float, x: float) -> float:
         if abs(delta - 1.0) < 1e-16:
             break
     return h * scale
+
+
+def chi2_isf(p: float, df: int) -> float:
+    """The x with P(X > x) = p for chi-square with df degrees of freedom."""
+    lo = 0.0
+    hi = 2.0
+    while chi2_sf(hi, df) > p:
+        hi *= 2.0
+    for _ in range(200):
+        mid = (lo + hi) / 2.0
+        if chi2_sf(mid, df) > p:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2.0
+
+
+def ncx2_sf(x: float, df: int, lam: float) -> float:
+    """Upper tail P(X > x) for noncentral chi-square, noncentrality lam.
+
+    A Poisson mixture of central chi-square tails, truncated once the unseen
+    Poisson weight can no longer move the sum. The truncation is absolute, so
+    this is only accurate where the result is not minuscule - all that
+    noncentrality() asks of it, since it reads the tail at a power of 0.8.
+    Checked against scipy.stats.ncx2.sf over df 1-9, lam 0-200 and x 0-300:
+    worst relative error 1.7e-9 wherever the true value exceeds 1e-6, and
+    6.2e-15 at the powers noncentrality() actually solves for.
+    """
+    if lam <= 0:
+        return chi2_sf(x, df)
+    half = lam / 2.0
+    log_half = math.log(half)
+    total = 0.0
+    seen = 0.0
+    for j in range(100000):
+        weight = math.exp(-half + j * log_half - math.lgamma(j + 1.0))
+        total += weight * gammaq(df / 2.0 + j, x / 2.0)
+        seen += weight
+        # Every gammaq factor is at most 1, so the Poisson weight still unseen
+        # bounds everything the remaining terms can add.
+        if j > half and 1.0 - seen < 1e-14:
+            break
+    return total
+
+
+def noncentrality(df: int, alpha: float) -> float:
+    """Noncentrality at which a chi-square test at alpha reaches POWER."""
+    crit = chi2_isf(alpha, df)
+    lo = 0.0
+    hi = 1.0
+    while ncx2_sf(crit, df, hi) < POWER:
+        hi *= 2.0
+    for _ in range(200):
+        mid = (lo + hi) / 2.0
+        if ncx2_sf(crit, df, mid) < POWER:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2.0
+
+
+def min_detectable_imbalance(expected: float, arms: int, alpha: float) -> float:
+    """Smallest relative imbalance on one arm this many counts can detect.
+
+    Measured against the alternative where one arm is inflated by a relative
+    amount r and its surplus is taken evenly from the others. That puts the
+    noncentrality at total * r**2 / (arms - 1), so r falls out of the
+    noncentrality that reaches POWER. Relative noise shrinks as 1/sqrt(n) with
+    no floor, so this gets smaller forever rather than bottoming out.
+    """
+    lam = noncentrality(arms - 1, alpha)
+    return math.sqrt(lam * (arms - 1) / (expected * arms))
 
 
 def fail(message: str) -> None:
@@ -190,6 +265,20 @@ def main(
             f"[yellow]Note: expected count is {expected:.1f} per arm; "
             f"chi2 is unreliable below {MIN_EXPECTED}.[/yellow]"
         )
+    else:
+        mdi = min_detectable_imbalance(expected, len(values), alpha)
+        observed = max(abs(c - expected) / expected for c in values)
+        counts = (
+            f"{mdi:.1%} at {expected:,.0f} per arm; "
+            f"largest observed is {observed:.1%}"
+        )
+        if observed < mdi:
+            console.print(
+                f"[yellow]Underpowered: smallest detectable imbalance is {counts}. "
+                f"A real imbalance this small would be invisible here.[/yellow]"
+            )
+        else:
+            console.print(f"[dim]Smallest detectable imbalance is {counts}.[/dim]")
     console.print()
 
 

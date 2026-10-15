@@ -59,6 +59,7 @@ OPTIONAL_WRITE_PATHS=(
   "$HOME/Library/pnpm"                              # pnpm global store
   "$HOME/.local"                                    # XDG data
   "$HOME/.npm"                                      # npm cache
+  "$HOME/.bun"                                      # Bun install cache + global bins
   "$HOME/.dbt"                                      # DBT Data
   "$HOME/.gem"                                      # Ruby gems
   "$HOME/go"                                        # Golang

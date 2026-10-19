@@ -66,6 +66,7 @@ OPTIONAL_WRITE_PATHS=(
   "$HOME/.docker/buildx"                            # Docker buildx state
   "$HOME/Library/Group Containers/group.com.docker" # Docker credential helper
   "$HOME/.moon"                                     # Moon
+  "$HOME/.pulumi"                                   # Pulumi CLI state + plugins
   "$CODE_ROOT/sandbox"                              # Scratch space
   "$CODE_ROOT/cc-toolshed"                          # Agent plugins/skills
   "$HOME/.aws"

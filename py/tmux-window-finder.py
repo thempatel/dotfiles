@@ -23,6 +23,7 @@ import json
 import os
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import typer
@@ -125,6 +126,45 @@ def session_display(session: str) -> str:
     if "/" in session:
         return session.rsplit("/", 1)[-1]
     return session
+
+
+def _live_panes() -> list[tuple[str, str, str, str]]:
+    """(pane_id, window_id, session, window_index) for every live pane."""
+    try:
+        raw = tmux(
+            "list-panes",
+            "-a",
+            "-F",
+            "#{pane_id}\t#{window_id}\t#{session_name}\t#{window_index}",
+        )
+    except subprocess.CalledProcessError:
+        return []
+    return [tuple(line.split("\t", 3)) for line in raw.splitlines() if line]
+
+
+def _resolve_target(
+    session: str | None, window: str | None
+) -> tuple[str, str, str, str] | None:
+    """Resolve a notify target to (window_id, session, window_index, source).
+
+    tmux never fails on a stale target: `display-message -t dotfiles:99` returns
+    the session's *current* window, so a hook firing as its window dies would
+    land its flag on whatever window is focused. Look the target up in the live
+    pane list instead and give up when it is gone.
+    """
+    panes = _live_panes()
+    if session is not None and window is not None:
+        for _, window_id, sess, idx in panes:
+            if sess == session and idx == window:
+                return window_id, sess, idx, f"explicit {session}:{window}"
+        return None
+    pane_target = os.environ.get("TMUX_PANE")
+    if not pane_target:
+        return None
+    for pane_id, window_id, sess, idx in panes:
+        if pane_id == pane_target:
+            return window_id, sess, idx, f"pane {pane_target}"
+    return None
 
 
 def _read_window_json(path: Path) -> dict:
@@ -360,21 +400,10 @@ def _do_notify(
     # Resolve a stable window_id for the target. Priority:
     #   1. explicit -s/-w (from the fzf bell-clear binding)
     #   2. $TMUX_PANE (set when invoked from a hook in a pane)
-    #   3. the currently focused window
-    if session is not None and window is not None:
-        target_args = ["-t", f"{session}:{window}"]
-    elif pane_target := os.environ.get("TMUX_PANE"):
-        target_args = ["-t", pane_target]
-    else:
-        target_args = []
-
-    resolved = tmux(
-        "display-message",
-        *target_args,
-        "-p",
-        "#{window_id}\t#{session_name}\t#{window_index}",
-    )
-    window_id, session, window_index = resolved.split("\t", 2)
+    target = _resolve_target(session, window)
+    if target is None:
+        return  # target window is gone (or unknown) — flagging anything else is wrong
+    window_id, session, window_index, source = target
 
     hook_input = _read_stdin_hook_input()
 
@@ -387,6 +416,8 @@ def _do_notify(
 
     # Store debug metadata from hook invocation
     existing["last_hook"] = {
+        "when": datetime.now().isoformat(timespec="seconds"),
+        "target": source,
         "event": hook_input.get("hook_event_name"),
         "action": status or "off",
         "agent": agent,

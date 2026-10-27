@@ -85,6 +85,9 @@ case "$AGENT" in
     mkdir -p "$CLAUDE_CONFIG"
     WRITE_PATHS+=(-W "$CLAUDE_CONFIG")
     WRITE_PATHS+=(-W "$HOME/.claude.json")
+    # settings.json is symlinked into dotfiles; Seatbelt checks the resolved path.
+    # Prefix match because Claude writes settings.json.tmp.<pid>.<hex> next to it, then renames.
+    [[ -e "$CLAUDE_CONFIG/settings.json" ]] && WRITE_PATHS+=(-W "$(realpath "$CLAUDE_CONFIG/settings.json")")
 
     CODEX_CONFIG="$HOME/.codex"
     mkdir -p "$CODEX_CONFIG"

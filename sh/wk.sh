@@ -133,9 +133,20 @@ find_worktree_for_branch() {
   '
 }
 
+# Print "<path>\t<workspace_id>" for each worktree of the repo that has a herdr
+# workspace open on it. Prints nothing when the herdr server is not running,
+# since then no workspace can be open.
+open_workspaces() {
+  local repo_path="$1"
+  herdr worktree list --cwd "$repo_path" 2>/dev/null |
+    jq -r '.result.worktrees[] | select(.open_workspace_id) | "\(.path)\t\(.open_workspace_id)"' 2>/dev/null ||
+    true
+}
+
 is_worktree_free() {
   local wt_dir="$1"
   local repo_path="$2"
+  local open_list="$3"
 
   # A directory matching the -wk-N name is not necessarily a worktree of this repo:
   # git status in a plain directory prints nothing, which would read as free.
@@ -145,7 +156,7 @@ is_worktree_free() {
     return 1
   fi
 
-  if tmux list-sessions -F '#{session_path}' 2>/dev/null | grep -qx "$wt_dir"; then
+  if cut -f1 <<< "$open_list" | grep -qxF "$wt_dir"; then
     return 1
   fi
 
@@ -164,13 +175,16 @@ find_worktree_dir() {
   local max=0
 
   if [[ -d "$WORKTREE_ROOT" ]]; then
+    local open_list
+    open_list=$(open_workspaces "$repo_path")
+
     while IFS= read -r dir; do
       [[ -d "$dir" ]] || continue
       local n="${dir##*-wk-}"
       [[ "$n" =~ ^[0-9]+$ ]] || continue
       (( n > max )) && max=$n
 
-      if is_worktree_free "$dir" "$repo_path"; then
+      if is_worktree_free "$dir" "$repo_path" "$open_list"; then
         echo "$dir"
         return 0
       fi
@@ -368,7 +382,7 @@ main() {
     direnv allow "$WORKTREE_DIR/.envrc"
   fi
 
-  sesh connect "$WORKTREE_DIR"
+  exec hw "$WORKTREE_DIR"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

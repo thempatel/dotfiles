@@ -35,3 +35,5 @@ targets:
     target: "~/.codex/hooks"
   - source: "agents"
     target: "~/.agents"
+  - source: "herdr"
+    target: "~/.config/herdr"

@@ -1,34 +1,3 @@
 {
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "tmux-window-finder notify --on --agent codex"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "tmux-window-finder notify --off --agent codex"
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "tmux-window-finder notify --off --agent codex"
-          }
-        ]
-      }
-    ]
-  }
+  "hooks": {}
 }

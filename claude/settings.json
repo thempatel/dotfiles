@@ -1,6 +1,7 @@
 {
   "cleanupPeriodDays": 365,
   "includeCoAuthoredBy": false,
+  "model": "opus",
   "hooks": {
     "Stop": [
       {
@@ -52,6 +53,18 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "^(startup|resume|clear|compact|fork)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '/Users/milan/.claude/hooks/herdr-agent-state.sh' session",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   },
   "alwaysThinkingEnabled": true,
@@ -64,5 +77,5 @@
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
   "autoUpdates": true,
-  "model": "opus"
+  "theme": "dark-daltonized"
 }

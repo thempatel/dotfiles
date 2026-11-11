@@ -1,3 +1,9 @@
 onboarding = false
 [worktrees]
 directory = "~/.herdr/worktrees"
+
+[[keys.command]]
+key = "prefix+k"
+type = "plugin_action"
+command = "herdr-bar.open"
+description = "command bar"

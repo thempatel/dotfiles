@@ -243,6 +243,7 @@ def seatbelt_policy(
     write_paths: Optional[list[Path]] = None,
     write_prefix_paths: Optional[list[Path]] = None,
     deny_paths: Optional[list[Path]] = None,
+    deny_write_paths: Optional[list[Path]] = None,
     allow_keychain: bool = False,
 ) -> str:
     """
@@ -254,6 +255,7 @@ def seatbelt_policy(
         write_prefix_paths: Paths to allow write access via prefix matching
             (also covers .lock, .tmp, and similar sidecars)
         deny_paths: Paths to deny all access
+        deny_write_paths: Paths to deny writes to; reads stay allowed
         allow_keychain: If True, allow Keychain access
 
     Returns:
@@ -278,6 +280,9 @@ def seatbelt_policy(
     # Add deny paths
     for p in deny_paths or []:
         policy.deny_all(p)
+
+    for p in deny_write_paths or []:
+        policy.deny_write(p)
 
     return policy.render()
 
@@ -319,6 +324,17 @@ def abs_path(p: str) -> Path:
         return parent.resolve() / path.name
 
 
+def unresolved_abs_path(p: str) -> Path:
+    """
+    Expand ~ and return an absolute path without following symlinks.
+
+    A deny on a symlink blocks replacing or removing the link itself. Seatbelt
+    checks writes through the link against its target, so deny the target
+    separately to block those.
+    """
+    return Path(os.path.abspath(os.path.expanduser(p)))
+
+
 def ensure_paths_exist(paths: list[Path]) -> None:
     """Ensure files exist so Seatbelt can reference them."""
     for p in paths:
@@ -353,6 +369,14 @@ def main(
     deny: Annotated[
         Optional[list[str]],
         typer.Option("-d", "--deny", help="Deny all access to PATH (repeatable)"),
+    ] = None,
+    deny_write: Annotated[
+        Optional[list[str]],
+        typer.Option(
+            "-D",
+            "--deny-write",
+            help="Deny write access to PATH, not following symlinks; reads stay allowed (repeatable)",
+        ),
     ] = None,
     allow_keychain: Annotated[
         bool,
@@ -390,6 +414,7 @@ def main(
     write_paths = [abs_path(p) for p in (write or [])]
     write_prefix_paths = [abs_path(p) for p in (write_prefix or [])]
     deny_paths_resolved = [abs_path(p) for p in (deny or [])]
+    deny_write_paths = [unresolved_abs_path(p) for p in (deny_write or [])]
 
     # Ensure files exist for Seatbelt
     ensure_paths_exist(write_paths)
@@ -402,6 +427,7 @@ def main(
         write_paths=write_paths,
         write_prefix_paths=write_prefix_paths,
         deny_paths=deny_paths_resolved,
+        deny_write_paths=deny_write_paths,
         allow_keychain=allow_keychain,
     )
 

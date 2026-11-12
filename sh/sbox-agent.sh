@@ -36,75 +36,45 @@ else
   AGENT="claude"
 fi
 
-# Allow writes to the current working directory
-WRITE_PATHS=(-w "$(pwd)")
+# All of $HOME is writable; the sandbox exists to protect the OS, not home.
+WRITE_PATHS=(-w "$HOME")
 
-# If inside a git worktree, the real .git metadata (index, refs, objects)
-# lives in the main repo's .git/worktrees/<name>/ directory, which is
-# outside $(pwd). Allow writes there too so git stash/commit/etc. work.
-GIT_COMMON_DIR="$(git rev-parse --git-common-dir 2>/dev/null)" || true
-GIT_DIR="$(git rev-parse --git-dir 2>/dev/null)" || true
-if [[ -n "$GIT_DIR" && -n "$GIT_COMMON_DIR" && "$GIT_DIR" != "$GIT_COMMON_DIR" ]]; then
-    WRITE_PATHS+=(-w "$GIT_DIR")
-    WRITE_PATHS+=(-w "$GIT_COMMON_DIR")
-fi
-
-# Optional writable paths (tool caches, package stores, etc.)
-OPTIONAL_WRITE_PATHS=(
-  "$HOME/.proto"                                    # Prototools
-  "${GOMODCACHE:-${GOPATH:-$HOME/go}/pkg/mod}"      # Go module cache
-  "$HOME/.cargo"                                    # Rust/Cargo
-  "$HOME/.rustup"                                   # Rust/Cargo
-  "$HOME/.cache"                                    # Generic cache
-  "$HOME/Library/pnpm"                              # pnpm global store
-  "$HOME/.local"                                    # XDG data
-  "$HOME/.npm"                                      # npm cache
-  "$HOME/.bun"                                      # Bun install cache + global bins
-  "$HOME/.dbt"                                      # DBT Data
-  "$HOME/.gem"                                      # Ruby gems
-  "$HOME/go"                                        # Golang
-  "$HOME/.docker/buildx"                            # Docker buildx state
-  "$HOME/Library/Group Containers/group.com.docker" # Docker credential helper
-  "$HOME/.moon"                                     # Moon
-  "$HOME/.pulumi"                                   # Pulumi CLI state + plugins
-  "$HOME/.browserstack"                             # BrowserStack
-  "$HOME/.config/herdr"                             # herdr plugins + session state
-  "$CODE_ROOT/sandbox"                              # Scratch space
-  "$CODE_ROOT/cc-toolshed"                          # Agent plugins/skills
-  "$HOME/.aws"
+# Read-only paths under $HOME that run code outside the sandbox later (at
+# login, in every new shell) or hold credentials.
+READ_ONLY_PATHS=(
+  "$HOME/Library/LaunchAgents"
+  "$HOME/.zshrc"
+  "$HOME/.zshenv"
+  "$HOME/.zprofile"
+  "$HOME/.bashrc"
+  "$HOME/.profile"
+  "$HOME/.ssh"
+  "$HOME/.ssh/config"
 )
-for p in "${OPTIONAL_WRITE_PATHS[@]}"; do
-  [[ -d "$p" ]] && WRITE_PATHS+=(-w "$p")
+
+# Seatbelt checks writes through a symlink against its target, so deny the
+# target too, unless it lives in the repo the agent was opened in: an agent
+# working in dotfiles can edit zsh/dot-zshrc, one working elsewhere can't.
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || true
+DENY_WRITE_PATHS=()
+for p in "${READ_ONLY_PATHS[@]}"; do
+  DENY_WRITE_PATHS+=(-D "$p")
+  [[ -L "$p" ]] || continue
+  target="$(realpath "$p")"
+  [[ -n "$REPO_ROOT" && "$target" == "$REPO_ROOT"/* ]] && continue
+  DENY_WRITE_PATHS+=(-D "$target")
 done
 
 # Agent-specific args
 AGENT_ARGS=()
 case "$AGENT" in
   claude)
-    # Claude can spawn codex, so both need write access.
-    CLAUDE_CONFIG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-    mkdir -p "$CLAUDE_CONFIG"
-    WRITE_PATHS+=(-W "$CLAUDE_CONFIG")
-    WRITE_PATHS+=(-W "$HOME/.claude.json")
-    # settings.json is symlinked into dotfiles; Seatbelt checks the resolved path.
-    # Prefix match because Claude writes settings.json.tmp.<pid>.<hex> next to it, then renames.
-    [[ -e "$CLAUDE_CONFIG/settings.json" ]] && WRITE_PATHS+=(-W "$(realpath "$CLAUDE_CONFIG/settings.json")")
-
-    CODEX_CONFIG="$HOME/.codex"
-    mkdir -p "$CODEX_CONFIG"
-    WRITE_PATHS+=(-w "$CODEX_CONFIG")
-
     AGENT_ARGS=(--dangerously-skip-permissions)
 
     CC_TOOLSHED="$CODE_ROOT/cc-toolshed"
     [[ -d "$CC_TOOLSHED" ]] && AGENT_ARGS+=(--plugin-dir "$CC_TOOLSHED")
     ;;
   codex)
-    CODEX_CONFIG="$HOME/.codex"
-    mkdir -p "$CODEX_CONFIG"
-    WRITE_PATHS+=(-w "$CODEX_CONFIG")
-    WRITE_PATHS+=(-w "$HOME/.agents")
-
     # Disable codex's inner Seatbelt sandbox — nested sandbox-exec is not
     # allowed by macOS, and our outer sbox already provides isolation.
     AGENT_ARGS=(--dangerously-bypass-approvals-and-sandbox)
@@ -116,6 +86,7 @@ export IS_SBOX=1
 exec \
   sbox \
   "${WRITE_PATHS[@]}" \
+  "${DENY_WRITE_PATHS[@]}" \
   "${EXTRA_ARGS[@]}" \
   --allow-keychain \
   -- \

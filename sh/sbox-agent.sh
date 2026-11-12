@@ -68,6 +68,7 @@ OPTIONAL_WRITE_PATHS=(
   "$HOME/.moon"                                     # Moon
   "$HOME/.pulumi"                                   # Pulumi CLI state + plugins
   "$HOME/.browserstack"                             # BrowserStack
+  "$HOME/.config/herdr"                             # herdr plugins + session state
   "$CODE_ROOT/sandbox"                              # Scratch space
   "$CODE_ROOT/cc-toolshed"                          # Agent plugins/skills
   "$HOME/.aws"

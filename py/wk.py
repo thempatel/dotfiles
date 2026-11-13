@@ -7,9 +7,11 @@
 
 The worktree is checked out detached at the latest default branch. Worktrees live
 in $CODE_ROOT/worktrees/<repo>-wk-N. A worktree is reused when it is free:
-registered to the repo, no herdr workspace open on it, and no modified tracked
-files. The worktree is opened with `hd`, whose agent tab gets the prompt as its
-first message. In the prompt box, enter sends and shift+enter (or ctrl+j) adds a
+registered to the repo, no modified tracked files, and either no herdr workspace
+open on it or one whose agents are fresh (idle Claude sessions that haven't
+replied yet, e.g. just after /clear). Worktrees with a fresh workspace are
+preferred, then closed ones, then a new wk-N. The worktree is opened with `hd`,
+which gives the prompt to the agent in its agent tab. In the prompt box, enter sends and shift+enter (or ctrl+j) adds a
 new line. An empty prompt starts the agent with no message; Esc cancels.
 """
 
@@ -19,6 +21,7 @@ import re
 import string
 import subprocess
 import sys
+from collections import defaultdict
 from pathlib import Path
 from typing import Annotated
 
@@ -36,6 +39,9 @@ app = typer.Typer(
 
 CODE_ROOT = Path(os.environ.get("CODE_ROOT", Path.home() / "src"))
 WORKTREE_ROOT = CODE_ROOT / "worktrees"
+CLAUDE_PROJECTS = (
+    Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude")) / "projects"
+)
 
 
 class Cancelled(Exception):
@@ -123,27 +129,73 @@ def refresh_default_branch(repo: Path) -> None:
         git_run(repo, "fetch", "origin", default)
 
 
-def open_workspace_paths(repo: Path) -> set[str]:
-    """Worktree paths of repo that have a herdr workspace open on them.
-
-    Empty when the herdr server is not running, since then no workspace can be open.
-    """
+def herdr_result(*args: str) -> dict | None:
+    """Run a herdr query and return its result, or None if it fails or herdr isn't running."""
     proc = subprocess.run(
-        ["herdr", "worktree", "list", "--cwd", str(repo)],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        text=True,
+        ["herdr", *args], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True
     )
     try:
-        worktrees = json.loads(proc.stdout)["result"]["worktrees"]
+        return json.loads(proc.stdout)["result"]
     except (json.JSONDecodeError, KeyError, TypeError):
+        return None
+
+
+def open_workspaces(repo: Path) -> dict[str, str]:
+    """Worktree path -> id of the herdr workspace open on it, for repo's worktrees."""
+    result = herdr_result("worktree", "list", "--cwd", str(repo))
+    if not result:
+        return {}
+    return {
+        wt["path"]: wt["open_workspace_id"]
+        for wt in result["worktrees"]
+        if wt.get("open_workspace_id")
+    }
+
+
+def has_replied(session_id: str) -> bool:
+    """Whether the Claude session's transcript has an assistant message.
+
+    A session that was never prompted has no transcript yet; one started by
+    /clear holds only the /clear command.
+    """
+    for transcript in CLAUDE_PROJECTS.glob(f"*/{session_id}.jsonl"):
+        with transcript.open() as f:
+            for line in f:
+                try:
+                    if json.loads(line).get("type") == "assistant":
+                        return True
+                except json.JSONDecodeError:
+                    continue
+    return False
+
+
+def is_fresh(agent: dict) -> bool:
+    """An idle Claude agent whose current session hasn't replied to anything."""
+    session_id = (agent.get("agent_session") or {}).get("value")
+    return (
+        agent.get("agent") == "claude"
+        and agent.get("agent_status") == "idle"
+        and bool(session_id)
+        and not has_replied(session_id)
+    )
+
+
+def fresh_workspaces(workspace_ids: set[str]) -> set[str]:
+    """The workspaces among workspace_ids that have agents, all of them fresh."""
+    result = herdr_result("agent", "list")
+    if not result:
         return set()
-    return {wt["path"] for wt in worktrees if wt.get("open_workspace_id")}
+    agents = defaultdict(list)
+    for agent in result["agents"]:
+        if agent["workspace_id"] in workspace_ids:
+            agents[agent["workspace_id"]].append(agent)
+    return {ws for ws, ws_agents in agents.items() if all(map(is_fresh, ws_agents))}
 
 
-def is_worktree_free(wt_dir: Path, repo: Path, open_paths: set[str]) -> bool:
+def is_worktree_clean(wt_dir: Path, repo: Path) -> bool:
+    """Registered as a worktree of repo, with no modified tracked files."""
     # A directory matching the -wk-N name is not necessarily a worktree of this repo:
-    # git status in a plain directory prints nothing, which would read as free.
+    # git status in a plain directory prints nothing, which would read as clean.
     try:
         wt_common = git(
             wt_dir, "rev-parse", "--path-format=absolute", "--git-common-dir"
@@ -153,9 +205,6 @@ def is_worktree_free(wt_dir: Path, repo: Path, open_paths: set[str]) -> bool:
     if wt_common != git(
         repo, "rev-parse", "--path-format=absolute", "--git-common-dir"
     ):
-        return False
-
-    if str(wt_dir) in open_paths:
         return False
 
     status = subprocess.run(
@@ -182,9 +231,12 @@ def find_worktree_dir(repo: Path) -> tuple[Path, bool]:
     slots.sort()
 
     if slots:
-        open_paths = open_workspace_paths(repo)
-        for _, d in slots:
-            if is_worktree_free(d, repo, open_paths):
+        open_ws = open_workspaces(repo)
+        fresh = fresh_workspaces(set(open_ws.values()))
+        with_fresh = [d for _, d in slots if open_ws.get(str(d)) in fresh]
+        closed = [d for _, d in slots if str(d) not in open_ws]
+        for d in with_fresh + closed:
+            if is_worktree_clean(d, repo):
                 return d, True
 
     next_n = slots[-1][0] + 1 if slots else 1

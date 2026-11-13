@@ -15,8 +15,8 @@ herdr's worktree support instead, so herdr groups the worktrees of a repo under
 the main checkout's workspace.
 
 With --prompt, a new workspace's agent starts with that text as its first
-message. A workspace that is already open is left alone and the prompt is not
-sent.
+message. In a workspace that is already open, the text is sent to the agent in
+its agent tab, whatever that agent is doing.
 """
 
 import hashlib
@@ -112,9 +112,28 @@ def agent_command(prompt: str | None) -> str:
     return f'clear && sbox-agent claude -- "$(cat {quoted} && rm {quoted})"'
 
 
-def warn_prompt_unsent(prompt: str | None) -> None:
-    if prompt:
-        print("hd: workspace was already open; prompt not sent", file=sys.stderr)
+def prompt_agent(ws_id: str, prompt: str | None) -> None:
+    """Send prompt to the agent in an open workspace and focus its tab."""
+    if not prompt:
+        return
+    agents = [
+        a
+        for a in herdr("agent", "list")["result"]["agents"]
+        if a["workspace_id"] == ws_id
+    ]
+    tabs = herdr("tab", "list", "--workspace", ws_id)["result"]["tabs"]
+    agent_tabs = {t["tab_id"] for t in tabs if t["label"] == TABS[0][0]}
+    agents.sort(key=lambda a: a["tab_id"] not in agent_tabs)
+    if not agents:
+        print("hd: no agent in the open workspace; prompt not sent", file=sys.stderr)
+        return
+    try:
+        herdr("agent", "prompt", agents[0]["pane_id"], prompt, quiet=True)
+    except subprocess.CalledProcessError:
+        # herdr refuses when the agent is waiting on an approval dialog.
+        print("hd: the agent did not accept the prompt; not sent", file=sys.stderr)
+        return
+    herdr("tab", "focus", agents[0]["tab_id"])
 
 
 def find_workspace(path: str, label: str) -> tuple[str, bool] | None:
@@ -177,9 +196,9 @@ def open_checkout(path: str, main: str, prompt: str | None) -> str:
     ws = result["workspace"]
     if not result["already_open"]:
         return setup_tabs(result, path, prompt)
-    warn_prompt_unsent(prompt)
     if TAG_NAME not in (ws.get("tokens") or {}):
         add_missing_tabs(ws["workspace_id"], path)
+    prompt_agent(ws["workspace_id"], prompt)
     return ws["workspace_id"]
 
 
@@ -240,9 +259,7 @@ def main(
     dir: Annotated[str, typer.Argument(help="Directory to open.")] = ".",
     prompt: Annotated[
         str | None,
-        typer.Option(
-            "--prompt", "-p", help="First message for a new workspace's agent."
-        ),
+        typer.Option("--prompt", "-p", help="Message for the workspace's agent."),
     ] = None,
 ) -> None:
     if not os.path.isdir(dir):
@@ -258,9 +275,9 @@ def main(
     elif found := find_workspace(path, label):
         ws_id, tagged = found
         herdr("workspace", "focus", ws_id)
-        warn_prompt_unsent(prompt)
         if not tagged:
             add_missing_tabs(ws_id, path)
+        prompt_agent(ws_id, prompt)
     else:
         ws_id = create_workspace(path, label, prompt)
     tag_path(ws_id, path)

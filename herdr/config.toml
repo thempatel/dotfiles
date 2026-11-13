@@ -4,6 +4,7 @@ directory = "~/.herdr/worktrees"
 
 [keys]
 settings = "prefix+shift+s"
+last_pane = "prefix+l"
 
 [[keys.command]]
 key = "prefix+s"

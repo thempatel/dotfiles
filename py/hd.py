@@ -13,13 +13,19 @@ then gets tagged, its first tab renamed to agent, and the tabs it lacks added).
 The root of a git checkout (the main one or a linked worktree) is opened through
 herdr's worktree support instead, so herdr groups the worktrees of a repo under
 the main checkout's workspace.
+
+With --prompt, a new workspace's agent starts with that text as its first
+message. A workspace that is already open is left alone and the prompt is not
+sent.
 """
 
 import hashlib
 import json
 import os
+import shlex
 import subprocess
 import sys
+import tempfile
 import time
 from typing import Annotated
 
@@ -92,6 +98,25 @@ def tag_path(ws_id: str, path: str) -> None:
 TABS = [("agent", "clear && sbox-agent"), ("term", None), ("nvim", "nvim")]
 
 
+# The prompt goes through a file because `herdr pane run` rejects a command line
+# longer than the terminal's input limit (about 1 KB on macOS), which a typed-in
+# prompt can easily exceed.
+def agent_command(prompt: str | None) -> str:
+    """The agent tab's command, starting the agent with prompt as its first message."""
+    if not prompt:
+        return TABS[0][1]
+    fd, prompt_file = tempfile.mkstemp(prefix="hd-prompt-", suffix=".txt")
+    with os.fdopen(fd, "w") as f:
+        f.write(prompt)
+    quoted = shlex.quote(prompt_file)
+    return f'clear && sbox-agent claude -- "$(cat {quoted} && rm {quoted})"'
+
+
+def warn_prompt_unsent(prompt: str | None) -> None:
+    if prompt:
+        print("hd: workspace was already open; prompt not sent", file=sys.stderr)
+
+
 def find_workspace(path: str, label: str) -> tuple[str, bool] | None:
     """Return (workspace_id, tagged), or None if no workspace matches."""
     workspaces = herdr("workspace", "list")["result"]["workspaces"]
@@ -136,35 +161,36 @@ def main_checkout(path: str) -> str | None:
     return result["source"]["source_checkout_path"]
 
 
-def create_workspace(path: str, label: str) -> str:
+def create_workspace(path: str, label: str, prompt: str | None) -> str:
     result = herdr("workspace", "create", "--cwd", path, "--label", label, "--focus")[
         "result"
     ]
-    return setup_tabs(result, path)
+    return setup_tabs(result, path, prompt)
 
 
 # herdr only groups a worktree under its repo's workspace when it is opened
 # through `worktree open`. If the repo has no workspace yet, herdr creates one.
-def open_checkout(path: str, main: str) -> str:
+def open_checkout(path: str, main: str, prompt: str | None) -> str:
     result = herdr("worktree", "open", "--cwd", main, "--path", path, "--focus")[
         "result"
     ]
     ws = result["workspace"]
     if not result["already_open"]:
-        return setup_tabs(result, path)
+        return setup_tabs(result, path, prompt)
+    warn_prompt_unsent(prompt)
     if TAG_NAME not in (ws.get("tokens") or {}):
         add_missing_tabs(ws["workspace_id"], path)
     return ws["workspace_id"]
 
 
-def setup_tabs(result: dict, path: str) -> str:
+def setup_tabs(result: dict, path: str, prompt: str | None) -> str:
     """Make a new workspace's first tab the agent tab and add the other tabs."""
     ws_id = result["workspace"]["workspace_id"]
     agent_tab = result["tab"]["tab_id"]
 
-    (agent_label, agent_cmd), *rest = TABS
+    (agent_label, _), *rest = TABS
     herdr("tab", "rename", agent_tab, agent_label)
-    herdr("pane", "run", result["root_pane"]["pane_id"], agent_cmd)
+    herdr("pane", "run", result["root_pane"]["pane_id"], agent_command(prompt))
     for tab_label, cmd in rest:
         add_tab(ws_id, path, tab_label, cmd)
 
@@ -212,6 +238,12 @@ def add_missing_tabs(ws_id: str, path: str) -> None:
 @app.command(help=__doc__)
 def main(
     dir: Annotated[str, typer.Argument(help="Directory to open.")] = ".",
+    prompt: Annotated[
+        str | None,
+        typer.Option(
+            "--prompt", "-p", help="First message for a new workspace's agent."
+        ),
+    ] = None,
 ) -> None:
     if not os.path.isdir(dir):
         sys.exit(f"Error: {dir} is not a directory")
@@ -222,18 +254,21 @@ def main(
 
     repo_main = main_checkout(path)
     if repo_main:
-        ws_id = open_checkout(path, repo_main)
+        ws_id = open_checkout(path, repo_main, prompt)
     elif found := find_workspace(path, label):
         ws_id, tagged = found
         herdr("workspace", "focus", ws_id)
+        warn_prompt_unsent(prompt)
         if not tagged:
             add_missing_tabs(ws_id, path)
     else:
-        ws_id = create_workspace(path, label)
+        ws_id = create_workspace(path, label, prompt)
     tag_path(ws_id, path)
 
     # Outside herdr, the workspace exists but nothing shows it: attach this terminal.
-    if os.environ.get("HERDR_ENV") != "1":
+    # A herdr popup (the wk key binding) is inside herdr but may not set HERDR_ENV;
+    # attaching there would nest a second herdr client in the popup.
+    if os.environ.get("HERDR_ENV") != "1" and not os.environ.get("HERDR_SOCKET_PATH"):
         os.execvp("herdr", ["herdr"])
 
 

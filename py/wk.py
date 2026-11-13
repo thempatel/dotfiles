@@ -1,24 +1,32 @@
 #!/usr/bin/env -S uv run --no-config --script
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["typer>=0.9.0"]
+# dependencies = ["typer>=0.9.0", "prompt-toolkit>=3.0"]
 # ///
-"""wk - pick a project and branch, check it out in a reusable worktree, open it in herdr.
+"""wk - pick a project, write a prompt, and start an agent in a fresh worktree.
 
-Worktrees live in $CODE_ROOT/worktrees/<repo>-wk-N. A worktree is reused when it
-is free: registered to the repo, no herdr workspace open on it, and no modified
-tracked files. The chosen worktree is opened with `hd`.
+The worktree is checked out detached at the latest default branch. Worktrees live
+in $CODE_ROOT/worktrees/<repo>-wk-N. A worktree is reused when it is free:
+registered to the repo, no herdr workspace open on it, and no modified tracked
+files. The worktree is opened with `hd`, whose agent tab gets the prompt as its
+first message. In the prompt box, enter sends and shift+enter (or ctrl+j) adds a
+new line. An empty prompt starts the agent with no message; Esc cancels.
 """
 
 import json
 import os
 import re
+import string
 import subprocess
 import sys
 from pathlib import Path
 from typing import Annotated
 
 import typer
+from prompt_toolkit import prompt
+from prompt_toolkit.input.ansi_escape_sequences import ANSI_SEQUENCES
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.keys import Keys
 
 app = typer.Typer(
     add_completion=False,
@@ -31,7 +39,7 @@ WORKTREE_ROOT = CODE_ROOT / "worktrees"
 
 
 class Cancelled(Exception):
-    """The user backed out of an fzf picker."""
+    """The user backed out of a picker or the prompt box."""
 
 
 def git(repo: Path | str, *args: str) -> str:
@@ -56,10 +64,6 @@ def git_ok(repo: Path | str, *args: str) -> bool:
 def git_run(repo: Path | str, *args: str) -> None:
     """Run git with its output going to the terminal; failures raise."""
     subprocess.run(["git", "-C", str(repo), *args], check=True)
-
-
-def has_local_branch(repo: Path, branch: str) -> bool:
-    return git_ok(repo, "show-ref", "--verify", "--quiet", f"refs/heads/{branch}")
 
 
 def has_remote_branch(repo: Path, ref: str) -> bool:
@@ -117,62 +121,6 @@ def refresh_default_branch(repo: Path) -> None:
     default = default_branch(repo)
     if has_remote_branch(repo, f"origin/{default}"):
         git_run(repo, "fetch", "origin", default)
-
-
-def list_branch_candidates(repo: Path) -> list[tuple[str, str]]:
-    """(branch name, source ref) pairs for the picker.
-
-    Local branches come first. A remote branch is listed only when no local branch
-    has the same short name.
-    """
-    local = git(
-        repo,
-        "branch",
-        "--sort=-committerdate",
-        "--sort=-HEAD",
-        "--format=%(refname:short)",
-    ).splitlines()
-    remote_refs = [
-        ref
-        for ref in git(
-            repo, "branch", "-r", "--sort=-committerdate", "--format=%(refname:short)"
-        ).splitlines()
-        if "/" in ref and not ref.endswith("/HEAD")
-    ][:100]
-
-    local_set = set(local)
-    candidates = [(b, b) for b in local if b]
-    candidates += [
-        (ref.split("/", 1)[1], ref)
-        for ref in remote_refs
-        if ref.split("/", 1)[1] not in local_set
-    ]
-    return candidates
-
-
-def resolve_remote_branch_ref(repo: Path, branch: str) -> str:
-    """The remote ref to track for a new local branch, or "" if none or ambiguous."""
-    if has_remote_branch(repo, f"origin/{branch}"):
-        return f"origin/{branch}"
-    matches = [
-        ref
-        for ref in git(
-            repo, "for-each-ref", "refs/remotes", "--format=%(refname:short)"
-        ).splitlines()
-        if not ref.endswith("/HEAD") and "/" in ref and ref.split("/", 1)[1] == branch
-    ]
-    return matches[0] if len(matches) == 1 else ""
-
-
-def find_worktree_for_branch(repo: Path, branch: str) -> Path | None:
-    """The worktree that already has branch checked out, if any."""
-    wt = None
-    for line in git(repo, "worktree", "list", "--porcelain").splitlines():
-        if line.startswith("worktree "):
-            wt = line.removeprefix("worktree ")
-        elif line == f"branch refs/heads/{branch}":
-            return Path(wt)
-    return None
 
 
 def open_workspace_paths(repo: Path) -> set[str]:
@@ -243,83 +191,55 @@ def find_worktree_dir(repo: Path) -> tuple[Path, bool]:
     return WORKTREE_ROOT / f"{prefix}{next_n}", False
 
 
-def reuse_worktree(wt_dir: Path, repo: Path, branch: str, source: str) -> None:
-    if has_local_branch(repo, branch):
-        git_run(wt_dir, "switch", branch)
-    elif source:
-        git_run(wt_dir, "switch", "-c", branch, source)
-        git_run(wt_dir, "branch", "--set-upstream-to", source, branch)
-    else:
-        refresh_default_branch(repo)
-        git_run(wt_dir, "switch", "--detach", default_start_point(repo))
-        git_run(wt_dir, "switch", "-c", branch)
+# A terminal sends shift+enter as a bare CR, the same as enter, unless the app
+# turns on the kitty keyboard protocol's "disambiguate" flag. That flag also
+# changes how Esc and ctrl+letter keys are sent, and prompt_toolkit doesn't know
+# those sequences, so they are mapped back to the keys they stand for.
+KITTY_ON = "\x1b[>1u"
+KITTY_OFF = "\x1b[<u"
+KITTY_SEQUENCES = {
+    "\x1b[13;2u": Keys.ControlJ,  # shift+enter
+    "\x1b[27u": Keys.Escape,
+    **{f"\x1b[{ord(c)};5u": Keys(f"c-{c}") for c in string.ascii_lowercase},
+}
 
 
-def pick_branch(repo: Path) -> tuple[str, str]:
-    """Interactive branch picker. Returns (branch, source ref); branch "" means detached."""
-    candidates = list_branch_candidates(repo)
-    out = fzf(
-        [f"{name}\t{source}" for name, source in candidates],
-        "--prompt=branch> ",
-        "--height=40%",
-        "--reverse",
-        "--border-label= Branches ",
-        "--header=Enter: use input (blank = detached off main)  Tab: copy highlighted branch\n"
-        "Type to filter existing branches or enter a new branch name",
-        "--delimiter=\t",
-        "--with-nth=1",
-        '--bind=tab:transform-query:[[ -n {} ]] && printf %s {1} || printf %s "$FZF_QUERY"',
-        "--expect=enter",
-        "--print-query",
-    )
-    lines = out.split("\n")
-    query, key, selection = (lines + ["", "", ""])[:3]
-    if key != "enter" and not selection:
-        selection = key
+def ask_prompt() -> str:
+    """Read the agent's first message from a text box. Raises Cancelled on esc/ctrl-c."""
+    ANSI_SEQUENCES.update(KITTY_SEQUENCES)
+    bindings = KeyBindings()
 
-    source = ""
-    if key == "enter":
-        branch = query
-    elif selection:
-        branch, _, source = selection.partition("\t")
-    else:
-        branch = query
+    @bindings.add("enter")
+    def send(event):
+        event.app.exit(result=event.app.current_buffer.text)
 
-    if not branch:
-        return "", ""
+    @bindings.add("c-j")
+    def newline(event):
+        event.current_buffer.newline(copy_margin=False)
 
-    if not source and not has_local_branch(repo, branch):
-        source = resolve_remote_branch_ref(repo, branch)
-    return branch, source
+    # eager: fire on Esc alone instead of waiting to see if it starts an
+    # alt+key sequence.
+    @bindings.add("escape", eager=True)
+    def cancel(event):
+        event.app.exit(exception=Cancelled())
 
-
-def ensure_worktree(repo: Path, branch: str, source: str) -> Path:
-    """A worktree with branch checked out, reusing or creating one as needed."""
-    WORKTREE_ROOT.mkdir(parents=True, exist_ok=True)
-    wt_dir = find_worktree_for_branch(repo, branch)
-    if wt_dir:
-        return wt_dir
-
-    wt_dir, reusable = find_worktree_dir(repo)
-    if reusable:
-        reuse_worktree(wt_dir, repo, branch, source)
-    elif has_local_branch(repo, branch):
-        git_run(repo, "worktree", "add", str(wt_dir), branch)
-    elif source:
-        git_run(repo, "worktree", "add", "-b", branch, str(wt_dir), source)
-        git_run(wt_dir, "branch", "--set-upstream-to", source, branch)
-    else:
-        refresh_default_branch(repo)
-        git_run(
-            repo,
-            "worktree",
-            "add",
-            "-b",
-            branch,
-            str(wt_dir),
-            default_start_point(repo),
+    print("Prompt for the agent. enter: send, shift+enter: new line, esc: cancel.")
+    print("An empty prompt starts the agent with no message.\n")
+    sys.stdout.write(KITTY_ON)
+    sys.stdout.flush()
+    try:
+        text = prompt(
+            "> ",
+            multiline=True,
+            prompt_continuation="  ",
+            key_bindings=bindings,
         )
-    return wt_dir
+    except KeyboardInterrupt:
+        raise Cancelled
+    finally:
+        sys.stdout.write(KITTY_OFF)
+        sys.stdout.flush()
+    return text.strip()
 
 
 def ensure_detached_worktree(repo: Path) -> Path:
@@ -366,24 +286,22 @@ def main(
         print(wt_dir if reusable else "None")
         raise typer.Exit(0 if reusable else 1)
 
-    git_run(repo, "worktree", "prune")
-
     try:
-        branch, source = pick_branch(repo)
+        prompt = ask_prompt()
     except Cancelled:
         return
 
-    wt_dir = (
-        ensure_worktree(repo, branch, source)
-        if branch
-        else ensure_detached_worktree(repo)
-    )
+    git_run(repo, "worktree", "prune")
+    wt_dir = ensure_detached_worktree(repo)
 
     envrc = wt_dir / ".envrc"
     if envrc.is_file():
         subprocess.run(["direnv", "allow", str(envrc)], check=True)
 
-    os.execvp("hd", ["hd", str(wt_dir)])
+    hd_args = ["hd", str(wt_dir)]
+    if prompt:
+        hd_args += ["--prompt", prompt]
+    os.execvp("hd", hd_args)
 
 
 if __name__ == "__main__":

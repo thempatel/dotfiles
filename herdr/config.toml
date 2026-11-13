@@ -2,6 +2,17 @@ onboarding = false
 [worktrees]
 directory = "~/.herdr/worktrees"
 
+[keys]
+settings = "prefix+shift+s"
+
+[[keys.command]]
+key = "prefix+s"
+type = "popup"
+command = "wk"
+description = "worktree + agent prompt"
+width = "80%"
+height = "70%"
+
 [[keys.command]]
 key = "prefix+k"
 type = "plugin_action"

@@ -9,6 +9,10 @@ A new workspace is labelled with the directory's basename and gets three tabs:
 agent (runs sbox-agent), term (a shell) and nvim. An open workspace is found by
 the path hash hd tags it with, or by label for an untagged workspace (which
 then gets tagged, its first tab renamed to agent, and the tabs it lacks added).
+
+The root of a git checkout (the main one or a linked worktree) is opened through
+herdr's worktree support instead, so herdr groups the worktrees of a repo under
+the main checkout's workspace.
 """
 
 import hashlib
@@ -31,9 +35,13 @@ TAG_SOURCE = "hd"
 TAG_NAME = "path_sha1"
 
 
-def herdr(*args: str) -> dict:
+def herdr(*args: str, quiet: bool = False) -> dict:
     out = subprocess.run(
-        ["herdr", *args], check=True, stdout=subprocess.PIPE, text=True
+        ["herdr", *args],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL if quiet else None,
+        text=True,
     ).stdout
     return json.loads(out) if out.strip() else {}
 
@@ -116,10 +124,41 @@ def add_tab(ws_id: str, path: str, label: str, cmd: str | None) -> str:
     return result["tab"]["tab_id"]
 
 
+def main_checkout(path: str) -> str | None:
+    """Return the repo's main checkout if path is the root of a git checkout."""
+    try:
+        result = herdr("worktree", "list", "--cwd", path, quiet=True)["result"]
+    except subprocess.CalledProcessError:
+        return None
+    real = os.path.realpath(path)
+    if all(os.path.realpath(w["path"]) != real for w in result["worktrees"]):
+        return None
+    return result["source"]["source_checkout_path"]
+
+
 def create_workspace(path: str, label: str) -> str:
     result = herdr("workspace", "create", "--cwd", path, "--label", label, "--focus")[
         "result"
     ]
+    return setup_tabs(result, path)
+
+
+# herdr only groups a worktree under its repo's workspace when it is opened
+# through `worktree open`. If the repo has no workspace yet, herdr creates one.
+def open_checkout(path: str, main: str) -> str:
+    result = herdr("worktree", "open", "--cwd", main, "--path", path, "--focus")[
+        "result"
+    ]
+    ws = result["workspace"]
+    if not result["already_open"]:
+        return setup_tabs(result, path)
+    if TAG_NAME not in (ws.get("tokens") or {}):
+        add_missing_tabs(ws["workspace_id"], path)
+    return ws["workspace_id"]
+
+
+def setup_tabs(result: dict, path: str) -> str:
+    """Make a new workspace's first tab the agent tab and add the other tabs."""
     ws_id = result["workspace"]["workspace_id"]
     agent_tab = result["tab"]["tab_id"]
 
@@ -181,8 +220,10 @@ def main(
 
     ensure_herdr_server()
 
-    found = find_workspace(path, label)
-    if found:
+    repo_main = main_checkout(path)
+    if repo_main:
+        ws_id = open_checkout(path, repo_main)
+    elif found := find_workspace(path, label):
         ws_id, tagged = found
         herdr("workspace", "focus", ws_id)
         if not tagged:

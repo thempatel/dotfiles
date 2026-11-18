@@ -37,7 +37,8 @@ else
 fi
 
 # All of $HOME is writable; the sandbox exists to protect the OS, not home.
-WRITE_PATHS=(-w "$HOME")
+# /opt/homebrew is writable so agents can brew install and upgrade.
+WRITE_PATHS=(-w "$HOME" -w /opt/homebrew)
 
 # Read-only paths under $HOME that run code outside the sandbox later (at
 # login, in every new shell) or hold credentials.

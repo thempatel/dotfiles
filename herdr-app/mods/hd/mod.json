@@ -1,1 +1,1 @@
-{ "place": "none", "title": "Open folder", "overlay": { "kind": "popup", "at": "top", "offset": 40, "width": 640, "height": 0.8 } }
+{ "place": "none", "title": "Worktree agent", "overlay": { "kind": "popup", "at": "top", "offset": 40, "width": 640, "height": 0.8 } }

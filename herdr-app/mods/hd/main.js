@@ -1,13 +1,17 @@
-// Open a folder with `hd --app`: go to its space, or make one with hd's agent,
-// term and nvim tabs. The folders are zoxide's, most used first; type to filter
-// them or type a path. ↑/↓ picks, Tab moves to the agent's message, Enter
-// opens, Esc leaves.
+// Start an agent in a worktree with `wk --app`: wk reuses a free worktree of the
+// project (one whose space has only a fresh agent, then one with no space) or
+// makes a new one, and opens it with `hd --app`. The projects are the folders in
+// $CODE_ROOT; type to filter them or type a repo's path. ↑/↓ picks, Tab moves to
+// the agent's message, Enter opens, Esc leaves.
 
 import { View, div } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { exec, home, notify, theme, props, closeOverlay } from "herdr";
 
 const ROWS = 12;
+
+// The folders wk's own picker lists, minus wk's worktrees folder.
+const PROJECTS = `cd "\${CODE_ROOT:-$HOME/src}" && for d in */; do [ "$d" = worktrees/ ] || echo "$PWD/\${d%/}"; done`;
 
 function tilde(path) {
   const h = home();
@@ -27,7 +31,7 @@ export default class Hd extends View {
     this.busy = false;
     this.error = "";
     this.inPrompt = false;
-    this.folder = InputState.new({ placeholder: "Folder…" });
+    this.folder = InputState.new({ placeholder: "Project…" });
     this.folder.on("change", (_e, cx) => {
       this.filter = this.folder.value();
       this.at = 0;
@@ -44,9 +48,9 @@ export default class Hd extends View {
     this.handle = cx.focus_handle();
     cx.spawn(async (cx) => {
       try {
-        const r = await exec("zoxide", ["query", "--list"]);
+        const r = await exec("sh", ["-c", PROJECTS]);
         if (r.code === 0) this.dirs = r.stdout.split("\n").filter(Boolean);
-        else this.error = r.stderr.trim() || "zoxide failed";
+        else this.error = r.stderr.trim() || "could not list projects";
       } catch (e) {
         this.error = String(e);
       }
@@ -74,20 +78,22 @@ export default class Hd extends View {
     const dir = this.rows()[this.at];
     if (!dir || this.busy) return;
     const message = this.prompt.value().trim();
-    const args = ["--app", dir];
-    if (message) args.push("--prompt", message);
+    const args = ["--app", dir, "--prompt", message];
     this.busy = true;
     this.error = "";
     cx.notify();
     cx.spawn(async (cx) => {
       try {
-        const r = await exec("hd", args, { timeout: 60_000 });
+        // wk fetches the default branch first, so allow for a slow network.
+        const r = await exec("wk", args, { timeout: 180_000 });
         if (r.code === 0) {
-          // hd still exits 0 when it couldn't hand the message to the agent.
-          if (r.stderr.trim()) notify({ title: "hd", body: r.stderr.trim(), level: "warning" });
+          // hd still exits 0 when it couldn't hand the message to the agent. The
+          // rest of stderr is git's progress output.
+          const warning = r.stderr.split("\n").filter((l) => l.startsWith("hd:")).join("\n");
+          if (warning) notify({ title: "wk", body: warning, level: "warning" });
           return this.close();
         }
-        this.error = r.stderr.trim() || r.stdout.trim() || `hd exited with ${r.code}`;
+        this.error = r.stderr.trim() || r.stdout.trim() || `wk exited with ${r.code}`;
       } catch (e) {
         this.error = String(e);
       }
@@ -130,12 +136,12 @@ export default class Hd extends View {
       .on_key_down((e, cx) => this.key(e, cx, rows.length))
       .w_full().min_h(0).p(18).gap(10).bg(t.popover).text_size(13).text_color(t.foreground)
       .child(h_flex().items_center()
-        .child(div().flex_1().text_size(15).font_semibold().child(this.busy ? "Opening…" : "Open folder"))
+        .child(div().flex_1().text_size(15).font_semibold().child(this.busy ? "Opening…" : "Worktree agent"))
         .child(div().text_size(11).text_color(t.dim).child("Tab: message · Esc")))
       .child(field(this.folder, !this.inPrompt))
       .child(field(this.prompt, this.inPrompt))
       .when(Boolean(this.error), (el) => el.child(div().text_size(12).text_color(t.blocked).child(this.error)))
       .child(v_flex().children(rows.slice(this.top, this.top + ROWS).map((d, i) => row(d, this.top + i))))
-      .when(rows.length === 0 && !this.error, (el) => el.child(div().px(14).text_color(t.dim).child("No folders match")));
+      .when(rows.length === 0 && !this.error, (el) => el.child(div().px(14).text_color(t.dim).child("No projects match")));
   }
 }

@@ -22,7 +22,7 @@ function untilde(path) {
   return path === "~" || path.startsWith("~/") ? home() + path.slice(1) : path;
 }
 
-export default class Hd extends View {
+export default class Wk extends View {
   init(_props, cx) {
     this.dirs = [];
     this.filter = "";
@@ -126,13 +126,13 @@ export default class Hd extends View {
         .child(Input.new(state).flex_1().h_full().text_size(12.8).text_color(t.foreground));
 
     const row = (dir, i) =>
-      h_flex().id(`hd-${i}`).mx(4).px(10).h(30).flex_none().items_center().rounded(7).cursor_pointer()
+      h_flex().id(`wk-${i}`).mx(4).px(10).h(30).flex_none().items_center().rounded(7).cursor_pointer()
         .when(i === this.at, (el) => el.bg(t.hover))
         .hover((s) => s.bg(t.hover))
         .on_click((_e, cx) => { this.at = i; this.open(cx); })
         .child(div().flex_1().truncate().text_color(i === this.at ? t.foreground : t.muted).child(tilde(dir)));
 
-    return v_flex().id("hd").track_focus(this.handle)
+    return v_flex().id("wk").track_focus(this.handle)
       .on_key_down((e, cx) => this.key(e, cx, rows.length))
       .w_full().min_h(0).p(18).gap(10).bg(t.popover).text_size(13).text_color(t.foreground)
       .child(h_flex().items_center()

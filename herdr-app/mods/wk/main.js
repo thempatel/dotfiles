@@ -1,8 +1,9 @@
 // Start an agent in a worktree with `wk --app`: wk reuses a free worktree of the
 // project (one whose space has only a fresh agent, then one with no space) or
 // makes a new one, and opens it with `hd --app`. The projects are the folders in
-// $CODE_ROOT; type to filter them or type a repo's path. ↑/↓ picks, Tab moves to
-// the agent's message, Enter opens, Esc leaves.
+// $CODE_ROOT; type to filter them or type a repo's path. ↑/↓ moves, Enter (or a
+// click) fills in the project and moves to the agent's message, Enter there
+// opens, Tab switches fields, Esc leaves.
 
 import { View, div } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
@@ -37,7 +38,7 @@ export default class Wk extends View {
       this.at = 0;
       cx.notify();
     });
-    this.folder.on("submit", (_e, cx) => this.open(cx));
+    this.folder.on("submit", (_e, cx) => this.pick(cx));
     this.prompt = InputState.new({ placeholder: "First message for the agent (optional)" });
     this.prompt.on("submit", (_e, cx) => this.open(cx));
     this.prompt.on("focus", (_e, cx) => { this.inPrompt = true; cx.notify(); });
@@ -70,8 +71,18 @@ export default class Wk extends View {
       return words.every((w) => shown.includes(w));
     });
     const path = untilde(typed).replace(/(.)\/+$/, "$1");
-    if (/^[~/]/.test(typed) && !found.includes(path)) found.unshift(path);
-    return found;
+    // A typed path goes first, so a picked project stays selected.
+    return /^[~/]/.test(typed) ? [path, ...found.filter((d) => d !== path)] : found;
+  }
+
+  pick(cx) {
+    const dir = this.rows()[this.at];
+    if (!dir) return;
+    this.folder.set_value(tilde(dir));
+    this.filter = this.folder.value();
+    this.at = 0;
+    this.prompt.focus();
+    cx.notify();
   }
 
   open(cx) {
@@ -129,7 +140,7 @@ export default class Wk extends View {
       h_flex().id(`wk-${i}`).mx(4).px(10).h(30).flex_none().items_center().rounded(7).cursor_pointer()
         .when(i === this.at, (el) => el.bg(t.hover))
         .hover((s) => s.bg(t.hover))
-        .on_click((_e, cx) => { this.at = i; this.open(cx); })
+        .on_click((_e, cx) => { this.at = i; this.pick(cx); })
         .child(div().flex_1().truncate().text_color(i === this.at ? t.foreground : t.muted).child(tilde(dir)));
 
     return v_flex().id("wk").track_focus(this.handle)

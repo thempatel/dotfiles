@@ -7,11 +7,14 @@ import { parse as parseYaml } from '@std/yaml';
 type Stowable = {
   source: string;
   target: string;
+  // Link each file rather than a whole directory the target lacks.
+  no_folding?: boolean;
 };
 
 type StowableConfig = {
   source: string;
   target: string | string[];
+  no_folding?: boolean;
 };
 
 type StowConfig = {
@@ -84,11 +87,12 @@ function loadConfig(configPath: string): StowConfig {
 }
 
 function expandTargets(config: StowConfig): Stowable[] {
-  return config.targets.flatMap(({ source, target }) => {
+  return config.targets.flatMap(({ source, target, no_folding }) => {
     const targets = Array.isArray(target) ? target : [target];
     return targets.map((resolvedTarget) => ({
       source,
       target: resolvedTarget,
+      no_folding,
     }));
   });
 }
@@ -117,8 +121,7 @@ const STOW_BIN = getBin('stow');
 
 function stow(
   root: string,
-  source: string,
-  target: string,
+  { source, target, no_folding }: Stowable,
   adopt: boolean,
   del: boolean,
   dryRun = false,
@@ -151,6 +154,10 @@ function stow(
     path.resolve(resolvedTarget),
     pkg,
   ];
+
+  if (no_folding) {
+    args.unshift('--no-folding');
+  }
 
   if (dryRun) {
     args.unshift('-n');
@@ -238,15 +245,7 @@ function listRegisteredProjects(): RegisteredProject[] {
 function isStowed(root: string, stowable: Stowable): boolean {
   // Dry-run a restow: stow emits UNLINK lines for already-stowed items
   try {
-    const result = stow(
-      root,
-      stowable.source,
-      stowable.target,
-      false,
-      false,
-      true,
-      true,
-    );
+    const result = stow(root, stowable, false, false, true, true);
     const output = new TextDecoder().decode(result.stderr);
     return output.includes('UNLINK:');
   } catch {
@@ -324,10 +323,10 @@ async function interactiveMode(
 
       if (!wasStowed && nowSelected) {
         console.log(`Stowing ${stowable.source} -> ${stowable.target}...`);
-        stow(project.root, stowable.source, stowable.target, false, false);
+        stow(project.root, stowable, false, false);
       } else if (wasStowed && !nowSelected) {
         console.log(`Unstowing ${stowable.source} -> ${stowable.target}...`);
-        stow(project.root, stowable.source, stowable.target, false, true);
+        stow(project.root, stowable, false, true);
       }
     }
   }
@@ -370,7 +369,7 @@ async function main() {
       if (opts.yes) {
         for (const project of projects) {
           for (const t of expandTargets(project.config)) {
-            stow(project.root, t.source, t.target, opts.adopt, opts.delete);
+            stow(project.root, t, opts.adopt, opts.delete);
           }
         }
         return;

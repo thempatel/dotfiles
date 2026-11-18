@@ -37,3 +37,7 @@ targets:
     target: "~/.agents"
   - source: "herdr"
     target: "~/.config/herdr"
+  - source: "herdr-app"
+    target: "~/.config/herdr-app"
+    # The Herdr app doesn't load a mod whose folder is a symlink.
+    no_folding: true

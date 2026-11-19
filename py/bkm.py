@@ -13,6 +13,10 @@
 Rows are "type  profile  url  name". The url column is shortened so the name
 stays on screen; the full url rides along in a hidden field, so what gets opened
 is always the real one.
+
+When stdout isn't a terminal, there's no picker: every row containing all the
+query's words is printed, best match first, as "type\tprofile\turl\tname" with
+the full url, so scripts and agents can read the results.
 """
 
 from __future__ import annotations
@@ -20,6 +24,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import subprocess
+import sys
 import urllib.parse
 from pathlib import Path
 
@@ -170,6 +175,25 @@ def main(
         raise typer.Exit(1)
 
     rows.sort(key=lambda r: r[0], reverse=True)
+
+    if not sys.stdout.isatty():
+        lines = "".join(
+            f"{kind}\t{label}\t{url}\t{name}\n" for _, kind, label, url, name, _ in rows
+        )
+        if query:
+            # Exact, not fuzzy: long urls (oauth codes, base64 blobs) hold almost
+            # any letters in order, so fuzzy matches thousands of junk rows.
+            # Every word must still appear somewhere in the row.
+            # fzf exits 1 when nothing matches; empty output says that already.
+            result = subprocess.run(
+                ["fzf", "--exact", "--filter=" + " ".join(query)],
+                input=lines,
+                capture_output=True,
+                text=True,
+            )
+            lines = result.stdout
+        sys.stdout.write(lines)
+        return
 
     wt = max(len(r[1]) for r in rows)
     wp = max(len(r[2]) for r in rows)

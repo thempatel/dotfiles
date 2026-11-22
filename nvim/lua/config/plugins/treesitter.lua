@@ -35,7 +35,6 @@ local M = {
   build = ":TSUpdate",
   main = "nvim-treesitter",
   dependencies = {
-    { "JoosepAlviste/nvim-ts-context-commentstring" },
     "andymass/vim-matchup",
   },
 }
@@ -60,9 +59,6 @@ M.config = function()
     require("nvim-treesitter").install(to_install)
   end
 
-  require("ts_context_commentstring").setup({
-    enable_autocmd = false,
-  })
   vim.g.matchup_matchparen_offscreen = { method = "popup" }
 end
 

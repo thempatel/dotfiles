@@ -29,7 +29,7 @@ local function prune()
   local victims = {}
   for _, buf in ipairs(listed) do
     -- Never evict something on screen or with unsaved changes; `buftype` skips
-    -- terminals, quickfix and oil buffers, which are not files to reopen.
+    -- terminals and quickfix buffers, which are not files to reopen.
     if not visible[buf.bufnr] and not vim.bo[buf.bufnr].modified and vim.bo[buf.bufnr].buftype == "" then
       victims[#victims + 1] = buf
     end

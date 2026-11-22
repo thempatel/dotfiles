@@ -23,3 +23,6 @@ alias pm='proxyman-cli proxy'
 
 # term
 alias term-reset='reset; tput cnorm'
+
+# nav
+alias pd='popd'

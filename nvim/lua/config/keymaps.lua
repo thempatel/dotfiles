@@ -56,6 +56,13 @@ end
 
 keymap("n", "<leader>lj", "<cmd>%!jq<cr>", { silent = true, desc = "[JSON] Format" })
 keymap("n", "<leader>lJ", "<cmd>%!jq -c<cr>", { silent = true, desc = "[JSON] Compact Format" })
+keymap({ "n", "x" }, "<leader>cf", function()
+  if vim.bo.filetype == "json" then
+    vim.cmd("%!jq")
+  else
+    vim.lsp.buf.format({ async = true })
+  end
+end, { silent = true, desc = "Format Buffer" })
 
 
 

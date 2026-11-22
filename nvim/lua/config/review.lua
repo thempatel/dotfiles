@@ -39,7 +39,14 @@ end
 function M.files()
   local base = merge_base()
   if base then
-    require("fzf-lua").git_diff({ ref = base })
+    require("fzf-lua").git_diff({
+      ref = base,
+      -- The preview reads the path from the entry's last field, which
+      -- `path.filename_first` splits into "name<tab>dir".
+      formatter = false,
+      -- `--` lets git diff files deleted from the working tree.
+      preview = "git diff {ref} -- {file}",
+    })
   end
 end
 

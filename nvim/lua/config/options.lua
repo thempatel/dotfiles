@@ -60,6 +60,9 @@ vim.o.foldcolumn = "auto"
 vim.o.foldlevel = 99
 vim.o.foldlevelstart = 99
 vim.o.foldenable = true
+vim.o.foldmethod = "expr"
+vim.o.foldexpr = "v:lua.require'config.utils.ui'.foldexpr()"
+vim.o.foldtext = ""
 
 vim.opt.showmatch = true
 vim.opt.undolevels = 10000

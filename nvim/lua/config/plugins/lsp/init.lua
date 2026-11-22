@@ -3,7 +3,6 @@ return {
   event = { "LspAttach", "InsertEnter", "BufWinEnter", "BufNewFile" },
   dependencies = {
     { "saghen/blink.cmp", event = { "InsertEnter", "CmdlineEnter" } },
-    { "b0o/schemastore.nvim", event = "InsertEnter" },
   },
   config = function()
     require("config.plugins.lsp.servers").setup()

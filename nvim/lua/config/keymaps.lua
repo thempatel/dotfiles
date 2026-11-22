@@ -82,14 +82,6 @@ keymap("n", "<F11>", function()
   end
 end, { silent = true, desc = "" })
 
-vim.g.tmux_resizer_resize_count = 2
-vim.g.tmux_resizer_vertical_resize_count = 2
-vim.g.tmux_resizer_no_mappings = 1
-keymap("n", "<C-M-k>", "<cmd>:TmuxResizeUp<CR>", { silent = true })
-keymap("n", "<C-M-j>", "<cmd>:TmuxResizeDown<CR>", { silent = true })
-keymap("n", "<C-M-h>", "<cmd>:TmuxResizeLeft<CR>", { silent = true })
-keymap("n", "<C-M-l>", "<cmd>:TmuxResizeRight<CR>", { silent = true })
-
 keymap("n", "<leader>gd", function()
   require("config.review").toggle()
 end, { desc = "Toggle Review Diff" })

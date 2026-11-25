@@ -35,8 +35,6 @@ targets:
     target: "~/.codex/hooks"
   - source: "agents"
     target: "~/.agents"
-  - source: "herdr"
-    target: "~/.config/herdr"
   - source: "herdr-app"
     target: "~/.config/herdr-app"
     # The Herdr app doesn't load a mod whose folder is a symlink.

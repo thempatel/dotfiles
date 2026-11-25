@@ -7,16 +7,15 @@
 
 The worktree is checked out detached at the latest default branch. Worktrees live
 in $CODE_ROOT/worktrees/<repo>-wk-N. A worktree is reused when it is free:
-registered to the repo, no modified tracked files, and either no herdr workspace
+registered to the repo, no modified tracked files, and either no Herdr app space
 open on it or one whose agents are fresh (idle Claude sessions that haven't
-replied yet, e.g. just after /clear). Worktrees with a fresh workspace are
+replied yet, e.g. just after /clear). Worktrees with a fresh space are
 preferred, then closed ones, then a new wk-N. The worktree is opened with `hd`,
 which gives the prompt to the agent in its agent tab. In the prompt box, enter sends and shift+enter (or ctrl+j) adds a
 new line. An empty prompt starts the agent with no message; Esc cancels.
 
-With --prompt, wk skips the prompt box. With --app, wk checks the Herdr desktop
-app's spaces instead of herdr's workspaces and opens the worktree with `hd --app`.
-The app's agents are matched to their Claude sessions by the folder Claude runs in.
+With --prompt, wk skips the prompt box. The app's agents are matched to their
+Claude sessions by the folder Claude runs in.
 """
 
 import json
@@ -134,29 +133,6 @@ def refresh_default_branch(repo: Path) -> None:
         git_run(repo, "fetch", "origin", default)
 
 
-def herdr_result(*args: str) -> dict | None:
-    """Run a herdr query and return its result, or None if it fails or herdr isn't running."""
-    proc = subprocess.run(
-        ["herdr", *args], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True
-    )
-    try:
-        return json.loads(proc.stdout)["result"]
-    except (json.JSONDecodeError, KeyError, TypeError):
-        return None
-
-
-def open_workspaces(repo: Path) -> dict[str, str]:
-    """Worktree path -> id of the herdr workspace open on it, for repo's worktrees."""
-    result = herdr_result("worktree", "list", "--cwd", str(repo))
-    if not result:
-        return {}
-    return {
-        wt["path"]: wt["open_workspace_id"]
-        for wt in result["worktrees"]
-        if wt.get("open_workspace_id")
-    }
-
-
 def has_replied(session_id: str) -> bool:
     """Whether the Claude session's transcript has an assistant message.
 
@@ -172,29 +148,6 @@ def has_replied(session_id: str) -> bool:
                 except json.JSONDecodeError:
                     continue
     return False
-
-
-def is_fresh(agent: dict) -> bool:
-    """An idle Claude agent whose current session hasn't replied to anything."""
-    session_id = (agent.get("agent_session") or {}).get("value")
-    return (
-        agent.get("agent") == "claude"
-        and agent.get("agent_status") == "idle"
-        and bool(session_id)
-        and not has_replied(session_id)
-    )
-
-
-def fresh_workspaces(workspace_ids: set[str]) -> set[str]:
-    """The workspaces among workspace_ids that have agents, all of them fresh."""
-    result = herdr_result("agent", "list")
-    if not result:
-        return set()
-    agents = defaultdict(list)
-    for agent in result["agents"]:
-        if agent["workspace_id"] in workspace_ids:
-            agents[agent["workspace_id"]].append(agent)
-    return {ws for ws, ws_agents in agents.items() if all(map(is_fresh, ws_agents))}
 
 
 def live_claude_sessions() -> dict[str, list[str]]:
@@ -273,7 +226,7 @@ def is_worktree_clean(wt_dir: Path, repo: Path) -> bool:
     return not status.strip()
 
 
-def find_worktree_dir(repo: Path, use_app: bool) -> tuple[Path, bool]:
+def find_worktree_dir(repo: Path) -> tuple[Path, bool]:
     """A free worktree to reuse, or the next unused wk-N path.
 
     Returns (path, reusable).
@@ -288,11 +241,7 @@ def find_worktree_dir(repo: Path, use_app: bool) -> tuple[Path, bool]:
     slots.sort()
 
     if slots:
-        if use_app:
-            open_ws, fresh = app_workspaces()
-        else:
-            open_ws = open_workspaces(repo)
-            fresh = fresh_workspaces(set(open_ws.values()))
+        open_ws, fresh = app_workspaces()
         with_fresh = [d for _, d in slots if open_ws.get(str(d)) in fresh]
         closed = [d for _, d in slots if str(d) not in open_ws]
         for d in with_fresh + closed:
@@ -354,13 +303,13 @@ def ask_prompt() -> str:
     return text.strip()
 
 
-def ensure_detached_worktree(repo: Path, use_app: bool) -> Path:
+def ensure_detached_worktree(repo: Path) -> Path:
     """A worktree with a detached checkout of the latest default branch."""
     WORKTREE_ROOT.mkdir(parents=True, exist_ok=True)
     refresh_default_branch(repo)
     base = default_start_point(repo)
 
-    wt_dir, reusable = find_worktree_dir(repo, use_app)
+    wt_dir, reusable = find_worktree_dir(repo)
     if reusable:
         git_run(wt_dir, "switch", "--detach", base)
     else:
@@ -385,10 +334,6 @@ def main(
             "--prompt", "-p", help="Message for the agent; skips the prompt box."
         ),
     ] = None,
-    use_app: Annotated[
-        bool,
-        typer.Option("--app", "-a", help="Use the Herdr app instead of the TUI."),
-    ] = False,
 ) -> None:
     if free and not repo_path:
         sys.exit("Error: --free requires <repo-path>")
@@ -404,7 +349,7 @@ def main(
 
     # --free is a query: no prune, no fetch, no worktree created.
     if free:
-        wt_dir, reusable = find_worktree_dir(repo, use_app)
+        wt_dir, reusable = find_worktree_dir(repo)
         print(wt_dir if reusable else "None")
         raise typer.Exit(0 if reusable else 1)
 
@@ -415,15 +360,13 @@ def main(
             return
 
     git_run(repo, "worktree", "prune")
-    wt_dir = ensure_detached_worktree(repo, use_app)
+    wt_dir = ensure_detached_worktree(repo)
 
     envrc = wt_dir / ".envrc"
     if envrc.is_file():
         subprocess.run(["direnv", "allow", str(envrc)], check=True)
 
     hd_args = ["hd", str(wt_dir)]
-    if use_app:
-        hd_args.append("--app")
     if prompt:
         hd_args += ["--prompt", prompt]
     os.execvp("hd", hd_args)

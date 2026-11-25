@@ -1,6 +1,6 @@
-// Start an agent in a worktree with `wk --app`: wk reuses a free worktree of the
+// Start an agent in a worktree with `wk`: wk reuses a free worktree of the
 // project (one whose space has only a fresh agent, then one with no space) or
-// makes a new one, and opens it with `hd --app`. The projects are the folders in
+// makes a new one, and opens it with `hd`. The projects are the folders in
 // $CODE_ROOT; type to filter them or type a repo's path. ↑/↓ moves, Enter (or a
 // click) fills in the project and moves to the agent's message, Enter there
 // opens, Tab switches fields, Esc leaves.
@@ -89,7 +89,7 @@ export default class Wk extends View {
     const dir = this.rows()[this.at];
     if (!dir || this.busy) return;
     const message = this.prompt.value().trim();
-    const args = ["--app", dir, "--prompt", message];
+    const args = [dir, "--prompt", message];
     this.busy = true;
     this.error = "";
     cx.notify();

@@ -2,20 +2,6 @@
   "cleanupPeriodDays": 365,
   "includeCoAuthoredBy": false,
   "model": "opus",
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "^(startup|resume|clear|compact|fork)$",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash '/Users/milan/.claude/hooks/herdr-agent-state.sh' session",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
-  },
   "alwaysThinkingEnabled": true,
   "modelSettings": {
     "claude-opus-5-5": {

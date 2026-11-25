@@ -23,7 +23,7 @@
     "cmd-d": "pane.split:right",
     "cmd-shift-d": "pane.split:down",
     "cmd-shift-t": "pane.split:right",
-    "cmd-shift-w": "pane.close",
+    "cmd-shift-w": "space.close",
     "cmd-shift-enter": "pane.zoom",
     "cmd-alt-left": "pane.go:left",
     "cmd-alt-right": "pane.go:right",
